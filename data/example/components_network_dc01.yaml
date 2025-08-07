@@ -7,7 +7,6 @@ seaf.ta.components.network:
     network_connection:
     - flix.lan.dc01.dmz.vpn
     - flix.wan.dc01.isp.01
-    - flix.lan.dc01.dmz.vdi
     realization_type: Физический
     segment: flix.network_segment.dc.dmz
     title: FPSU-1
@@ -21,7 +20,6 @@ seaf.ta.components.network:
     network_connection:
     - flix.lan.dc01.inet_edge
     - flix.lan.dc01.dmz.prod
-    - flix.lan.dc01.dmz.test
     purpose: Пограничный NGFW Internet
     realization_type: Физический
     segment: flix.network_segment.dc.dmz
@@ -36,7 +34,6 @@ seaf.ta.components.network:
     network_connection:
     - flix.lan.dc01.inet_edge
     - flix.lan.dc01.dmz.test
-    - flix.lan.dc01.dmz.prod
     purpose: Пограничный NGFW Internet
     realization_type: Физический
     segment: flix.network_segment.dc.dmz
