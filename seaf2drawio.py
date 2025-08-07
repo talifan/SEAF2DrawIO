@@ -249,7 +249,7 @@ if __name__ == '__main__':
     diagram.from_xml(d.read_file_with_utf8(conf['drawio_pattern']))
     
     # Удаляем устаревшие связи перед добавлением новых
-    remove_obsolete_links(diagram, conf['data_yaml_file'], 'seaf.ta.components.network')
+    remove_obsolete_links(diagram, conf['data_yaml_file'])
     
     diagram_ids['Main Schema'] = list(d.get_object(conf['data_yaml_file'], root_object).keys())
     for file_name, pages in diagram_pages.items():
