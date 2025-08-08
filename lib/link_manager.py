@@ -43,40 +43,44 @@ def remove_obsolete_links(diagram, data_file, schema_key):
     :param data_file: Путь к YAML-файлу с данными
     :param schema_key: Ключ схемы для поиска связей в данных
     """
+    # Получаем связи из новых данных
+    from lib import seaf_drawio
+
+    d = seaf_drawio.SeafDrawio({})
+    object_data = d.get_object(data_file, schema_key)
+
+    # Собираем связи из данных и список ID компонентов
+    data_links = collect_data_links(object_data)
+    component_ids = set(object_data.keys())
+
     # Получаем все связи из диаграммы
     existing_links = {}
-    
+
     # Работаем напрямую с XML-деревом диаграммы
     root = diagram.drawing
-    
+
+    # Создаем отображение ID вершин mxCell в ID объектов
+    cell_to_object = {}
+    for obj in root.iter('object'):
+        cell = obj.find('mxCell')
+        if cell is not None and cell.get('vertex') == '1':
+            cell_to_object[cell.get('id')] = obj.get('id')
+
     # Ищем все элементы object с атрибутом edge (связи)
     for obj in root.iter('object'):
         cell = obj.find('mxCell')
         if cell is not None and cell.get('edge') == '1':
-            source = cell.get('source')
-            target = cell.get('target')
-            if source and target:
+            source = cell_to_object.get(cell.get('source'), cell.get('source'))
+            target = cell_to_object.get(cell.get('target'), cell.get('target'))
+            if (
+                source and target
+                and source in component_ids
+                and ('.lan.' in target or '.wan.' in target)
+            ):
                 # Используем кортеж (source, target) как ключ
                 # Учитываем, что связи двунаправленные
                 link_key = tuple(sorted([source, target]))
                 existing_links[link_key] = obj.get('id')
-    
-    # Получаем связи из новых данных
-    from lib import seaf_drawio
-    
-    # Загружаем данные
-    d = seaf_drawio.SeafDrawio({})
-    
-    # Для компонентов используем другую схему
-    if schema_key == 'seaf.ta.components.network':
-        object_data = d.get_object(data_file, schema_key)
-        # Собираем связи из данных
-        data_links = collect_data_links(object_data)
-    else:
-        # Для других схем используем оригинальный подход
-        object_data = d.get_object(data_file, schema_key)
-        # Собираем связи из данных
-        data_links = collect_data_links(object_data)
     
     # Определяем связи для удаления
     links_to_remove = set(existing_links.keys()) - data_links
