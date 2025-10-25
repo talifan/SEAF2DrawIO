@@ -1,0 +1,3 @@
+N2G==0.3.3
+PyYAML==5.4.1
+deepmerge==2.0
