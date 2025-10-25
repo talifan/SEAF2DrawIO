@@ -30,12 +30,12 @@ seaf2drawio:
     - data/example/storage.yaml
     - data/example/user_device.yaml
   drawio_pattern: data/base.drawio
-#  drawio_pattern: data/base_for_example.drawio
+  #  drawio_pattern: data/base_for_example.drawio
   output_file: result/Sample_graph.drawio
   verify_generation: true
+#  link_style: straight  # опционально: устанавливает прямые связи вместо угловых
 
 drawio2seaf:
   schema_file: data/seaf_schema.yaml
   drawio_file: result/Sample_graph.drawio
   output_file: result/seaf.yaml
-

@@ -21,6 +21,7 @@ expected_counts = {}
 expected_data = {}
 pattern_specs = {}
 data_store = None
+link_style_override = ''
 
 # Переменные по умолчанию
 DEFAULT_CONFIG = {
@@ -59,6 +60,33 @@ def cli_vars(config):
     except argparse.ArgumentTypeError as e:
         print(e)
         sys.exit(1)
+
+
+def adjust_link_style(style):
+    if not style or link_style_override != 'straight':
+        return style
+    tokens = []
+    for token in style.split(';'):
+        token = token.strip()
+        if not token:
+            continue
+        if token.startswith('edgeStyle='):
+            continue
+        if token.startswith('curved='):
+            continue
+        if token.startswith('rounded='):
+            continue
+        if token.startswith('jumpStyle='):
+            continue
+        if token.startswith('orthogonalLoop='):
+            continue
+        if token.startswith('jettySize='):
+            continue
+        tokens.append(token)
+    tokens.insert(0, 'edgeStyle=straight')
+    tokens.append('curved=0')
+    tokens.append('rounded=0')
+    return ';'.join(tokens) + ';'
 
 def position_offset(pattern):
 
@@ -207,15 +235,78 @@ def add_object(pattern, data, key_id):
 def add_links(pattern,  **kwargs):
 
     diagram.drawio_link_object_xml = pattern['xml']
-    source_id = 'Unknown'
+    schema_name = pattern['schema']
+    type_filter = object_pattern.get('type')
 
-    for source_id, targets in d.get_object(conf['data_yaml_file'], pattern['schema'],
-                                           type=object_pattern.get('type')).items():  # source_id - ID объекта
+    if kwargs.get('network_link'):
+        schema_name = 'seaf.ta.services.network_links'
+        type_filter = None
+
+    source_id = 'Unknown'
+    source_objects = d.get_object(conf['data_yaml_file'], schema_name, type=type_filter)
+
+    if not isinstance(source_objects, dict):
+        return
+
+    eligible_links = None
+    if kwargs.get('network_link'):
+        eligible_links = {}
+        for link_id, link_value in source_objects.items():
+            connections = link_value.get(pattern['targets']) or []
+            present_count = sum(1 for node_id in connections if node_id in diagram_ids[page_name])
+            if present_count >= 2:
+                eligible_links[link_id] = link_value
+        if eligible_links:
+            expected_counts.setdefault(schema_name, set()).update(list(eligible_links.keys()))
+            expected_data.setdefault(schema_name, {}).update(eligible_links)
+
+    drawn_pairs = set()
+
+    for source_id, targets in source_objects.items():  # source_id - ID объекта
 
         if kwargs.get('logical_link'):
             targets['OID'] = source_id
             source_id = targets['source']
             targets['schema'] = pattern['schema']
+
+        if kwargs.get('network_link'):
+            link_data = targets
+            link_data.setdefault('OID', source_id)
+            link_data.setdefault('schema', schema_name)
+            connections = link_data.get(pattern['targets']) or []
+            if not isinstance(connections, list):
+                continue
+            normalized_connections = [conn for conn in connections if conn]
+            if len(normalized_connections) < 2:
+                continue
+            anchor = next((conn for conn in normalized_connections if conn in diagram_ids[page_name]), None)
+            if not anchor:
+                # все объекты отсутствуют на текущей странице, откладываем проверку
+                for target_id in normalized_connections[1:]:
+                    pending_missing_links.add((page_name, normalized_connections[0], target_id))
+                continue
+
+            style = pattern.get('style', '')
+            technology = link_data.get('technology')
+            if technology:
+                tech_key = f"style.{technology}"
+                style = pattern.get(tech_key, style)
+            style = adjust_link_style(style)
+
+            label = link_data.get('title', '')
+
+            for target_id in normalized_connections:
+                if target_id == anchor:
+                    continue
+                pair_key = tuple(sorted((anchor, target_id)))
+                if pair_key in drawn_pairs:
+                    continue
+                if target_id in diagram_ids[page_name]:
+                    diagram.add_link(source=anchor, target=target_id, style=style, label=label, data=link_data)
+                else:
+                    pending_missing_links.add((page_name, anchor, target_id))
+                drawn_pairs.add(pair_key)
+            continue
 
         try:
             if source_id in diagram_ids[page_name]:  # Объект присутствует на текущей диаграмме
@@ -235,9 +326,11 @@ def add_links(pattern,  **kwargs):
                     if target_id in diagram_ids[page_name]:  # Объект для связи присутствует на диаграмме
                         if kwargs.get('logical_link'):
                             style = 'style'+ str(targets['direction']) # Выбор стиля стрелки
-                            diagram.add_link(source=source_id, target=target_id, style=pattern[style], data=targets)
+                            style_value = adjust_link_style(pattern[style])
+                            diagram.add_link(source=source_id, target=target_id, style=style_value, data=targets)
                         else:
-                            diagram.add_link(source=source_id, target=target_id, style=pattern['style'])
+                            base_style = adjust_link_style(pattern['style'])
+                            diagram.add_link(source=source_id, target=target_id, style=base_style)
                     else:
                         # Defer logging: cross-page targets are expected; warn later only if missing everywhere
                         pending_missing_links.add((page_name, source_id, target_id))
@@ -280,6 +373,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     conf = cli_vars(d.load_config("config.yaml")['seaf2drawio'])
+    link_style_override = (conf.get('link_style') or '').lower()
 
     data_store = d.get_merged_yaml(conf['data_yaml_file'])
 
@@ -326,6 +420,8 @@ if __name__ == '__main__':
 
                 if bool(re.match(r'^network_links(_\d+)*',k)):
                     add_links(object_pattern, pattern_name=k)  # Связывание объектов на текущей диаграмме
+                    if k == 'network_links':
+                        add_links(object_pattern, network_link=True)  # Дополнительные связи из seaf.ta.services.network_links
 
                 if bool(re.match(r'^logical_links(_\d+)*', k)):
                     add_links(object_pattern, logical_link=True)  # Связывание объектов на текущей диаграмме
