@@ -220,12 +220,13 @@ def add_object(pattern, data, key_id):
             if 'parent_tmp' in data:
                 del data['parent_tmp']
 
-            # Если не содержит конструкции <object></object>, то изменять ID добавляя порядковый номер
+                        # Если не содержит конструкции <object></object>, то изменять ID добавляя порядковый номер
+
             
-            # DEBUG
-            print(f"DEBUG XML for {key_id}: {diagram.drawio_node_object_xml}")
+
+                        diagram.add_node(
+
             
-            diagram.add_node(
                 id=f"{key_id}_{pattern_count}" if not d.contains_object_tag(xml_pattern, 'object') else key_id,
                 label=safe_title,
                 x_pos=pattern['x'],
