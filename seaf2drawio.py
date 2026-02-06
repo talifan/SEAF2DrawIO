@@ -7,6 +7,7 @@ from copy import deepcopy
 from lib import seaf_drawio
 from lib.link_manager import remove_obsolete_links, draw_verify, advanced_analysis
 import xml.etree.ElementTree as ET
+import xml.sax.saxutils as saxutils
 
 patterns_dir = 'data/patterns/'
 diagram = drawio_diagram()
@@ -185,10 +186,16 @@ def add_object(pattern, data, key_id):
 
 
         try:
+            # Escape data for XML, including quotes for attributes
+            safe_data = {k: saxutils.escape(str(v), entities={'"': "&quot;", "'": "&apos;"}) if v is not None else '' for k, v in data.items()}
+            
             diagram.drawio_node_object_xml = diagram.drawio_node_object_xml.format_map(
-                data | {'Group_ID': f'{key_id}_0', 'parent_id' : current_parent, 'parent_type' : default_pattern['parent'],
-                        'description' : data.get('description','') })  # замена в xml шаблоне переменных в одинарных {}, добавление ID группы
+                safe_data | {'Group_ID': f'{key_id}_0', 'parent_id' : current_parent, 'parent_type' : default_pattern['parent'],
+                        'description' : saxutils.escape(str(data.get('description','') or ''), entities={'"': "&quot;", "'": "&apos;"}) })
             data['OID'] = key_id
+            
+            # Pre-escape title for N2G add_node which inserts it into XML
+            safe_title = saxutils.escape(str(data.get('title', '')), entities={'"': "&quot;", "'": "&apos;"})
 
         except KeyError as e:
 
@@ -214,9 +221,10 @@ def add_object(pattern, data, key_id):
                 del data['parent_tmp']
 
             # Если не содержит конструкции <object></object>, то изменять ID добавляя порядковый номер
+
             diagram.add_node(
                 id=f"{key_id}_{pattern_count}" if not d.contains_object_tag(xml_pattern, 'object') else key_id,
-                label=data['title'],
+                label=safe_title,
                 x_pos=pattern['x'],
                 y_pos=pattern['y'],
                 width=pattern['w'],

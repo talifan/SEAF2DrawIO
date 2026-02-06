@@ -30,7 +30,7 @@ class SeafDrawio:
         :return: Итоговая конфигурация.
         """
         try:
-            with open(config_file, 'r') as file:
+            with open(config_file, 'r', encoding='utf-8') as file:
                 user_config = yaml.safe_load(file) or {}
         except FileNotFoundError:
             print(f"Файл {config_file} не найден. Используются значения по умолчанию.")
