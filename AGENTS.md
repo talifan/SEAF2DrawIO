@@ -43,3 +43,34 @@
 - Keep inputs in `data/example/`; write artifacts to `result/`.
 - Large edits to patterns can impact layout across pages—test both DC and Office pages.
 
+
+## SEAF TA Patterns: Practical Notes (for future agents)
+
+- UTF‑8 everywhere
+  - Always run with UTF‑8 output on Windows: `python -X utf8 seaf2drawio.py` or set `PYTHONUTF8=1`.
+  - Console/log messages may include Cyrillic; without UTF‑8 you may get encode errors.
+
+- Diagnostics triage loop (3‑line check)
+  - When `seaf2drawio.py` reports “Diagnostics for missing items”, for each item compare:
+    1) Example value (from `data/example/*`), 2) Schema enum/title (from `_metamodel_/seaf-core/entities/*`), 3) What the script/patterns expect (by category/type in `data/patterns/*`).
+  - Decide where to fix: patterns vs examples vs schema. Prefer aligning patterns to the schema if examples already match schema.
+
+- Common mismatches and fixes
+  - Latin vs Cyrillic lookalikes: `Cерверы…` (Latin “C”) vs `Серверы…` (Cyrillic “С”). Keep schema + examples consistent; update patterns to match exactly.
+  - Device type: `ARM` vs `АРМ`. The schema uses Cyrillic `АРМ`; align patterns to `АРМ`.
+  - compute_service dns/dhcp/ntp: examples must include `service_type: "Управление сетевым адресным пространством (DHCP, DNS и т.д.)"` otherwise items won’t be classified by patterns.
+
+- Ordering matters with parent_id
+  - Many patterns rely on `parent_id` fields (e.g., `network_connection`, `segment`). Objects are rendered only after their parent appears on the page.
+  - If a category does not render even though data and schema are correct, place its pattern block after the parent’s pattern blocks in `data/patterns/*`.
+  - Example: compute_service category “Шлюз, Балансировщик, прокси”. Use the block `ta_services_proxy_compute_fallback` placed after network sections so that `parent_id='network_connection'` is present.
+
+- About `ta_services_proxy_compute_fallback`
+  - Purpose: robust placement for `seaf.ta.services.compute_service` with `service_type="Шлюз, Балансировщик, прокси"` after network objects are drawn.
+  - Why: the generator adds a child only if the parent already exists on the page; this block guarantees the correct order.
+  - Keep a single active block; remove/avoid duplicates (any `*_disabled` variants are cleanup targets).
+
+- Pattern hygiene
+  - Avoid duplicate top‑level keys in pattern YAML (they error the loader).
+  - Prefer adding new categories by copying a nearby working block and adjusting `type: 'service_type:…'` and coordinates `x/y` to fit the existing grid.
+  - Test both DC (`data/patterns/dc.yaml`) and Office (`data/patterns/office.yaml`) pages; coordinates differ between pages.

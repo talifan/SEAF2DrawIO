@@ -1,47 +1,71 @@
-seaf.ta.services.monitoring:
-  flix.monitoring.elk:
+seaf.company.ta.services.monitorings:
+  jupiter.monitoring.elk:
     availabilityzone:
-      - flix.dc_az.moscow
+    - jupiter.dc_az.moscow
     description: Сбор логов
     ha: false
     location:
-      - flix.dc.01
-      - flix.dc.02
+    - jupiter.dc.moscow_dc01
+    - jupiter.dc.moscow_dc02
     app_components:
-      - flix.1c.db
-      - flix.1c
-      - flix.home_cinema.payments
+    - jupiter.sys_component.efs_db
+    - jupiter.sys_component.efs_webapp
+    - jupiter.sys_component.efs_rm
+    - jupiter.sys_component.efs_news
+    - jupiter.app_system.aihub
+    - jupiter.app_system.aihub_model_ds1
+    - jupiter.app_system.1c_erp
+    - jupiter.app_system.mes_clothing
+    - jupiter.app_system.ecm_news
+    - jupiter.app_system.tms
+    - jupiter.app_system.mp_favorite_clientв
     network_connection:
-      - flix.lan.dc01.int.it.services
-      - flix.lan.dc02.int.it.services
+    - jupiter.network.lan.dc01.int.it.services
+    - jupiter.network.lan.dc02.int.it.services
     role:
-      - Журналирование
+    - Журналирование
     stand:
-      - flix.stand.prod
+    - jupiter.stand.prod
     title: ELK
-  flix.monitoring.zabbix:
+    monitored_services:
+    - jupiter.k8s.01
+    - jupiter.k8s.02
+    - jupiter.k8s.llm.01
+    - jupiter.kb.audit.siem
+    - jupiter.server_virtual.wildfly01
+    - jupiter.server_virtual.wildfly02
+  jupiter.monitoring.zabbix:
     availabilityzone:
-      - flix.dc_az.moscow
+    - jupiter.dc_az.moscow
     description: Инфраструктурный мониторинг (ДЗО)
     external_id: monitoring.01
     ha: true
     location:
-      - flix.dc.01
-      - flix.dc.02
+    - jupiter.dc.moscow_dc01
+    - jupiter.dc.moscow_dc02
     network_connection:
-      - flix.lan.dc01.int.it.services
-      - flix.lan.dc02.int.it.services
+    - jupiter.network.lan.dc01.int.it.services
+    - jupiter.network.lan.dc02.int.it.services
     role:
-      - Инфраструктурный
-      - Журналирование
+    - инфраструктурный
+    - Журналирование
     app_components:
-      - flix.1c.db
-      - flix.1c
-      - flix.home_cinema.payments
+    - jupiter.sys_component.efs_db
+    - jupiter.sys_component.efs_webapp
+    - jupiter.sys_component.efs_rm
+    - jupiter.sys_component.efs_news
+    - jupiter.app_system.aihub
+    - jupiter.app_system.aihub_model_ds1
+    - jupiter.app_system.1c_erp
+    - jupiter.app_system.mes_clothing
+    - jupiter.app_system.ecm_news
+    - jupiter.app_system.tms
+    - jupiter.app_system.mp_favorite_client
+    - jupiter.sys_component.efs_bal
     sber:
       alarm_transport:
-        - mail
-        - TG
+      - mail
+      - TG
       frequency: 5
       history: 365
       monitoring_console: https://zabbix.flix.ru
@@ -49,5 +73,27 @@ seaf.ta.services.monitoring:
       sber_radar: https://console.radar.sber.ru
       siem_anabled: true
     stand:
-      - flix.stand.prod
+    - jupiter.stand.prod
     title: Zabbix
+    monitored_services:
+    - jupiter.server_metal.01
+    - jupiter.server_metal.02
+    - jupiter.server_metal.gpu-worker-01
+    - jupiter.server_metal.gpu-worker-02
+    - jupiter.server_metal.proxmox_node_01
+    - jupiter.server_metal.proxmox_node_02
+    - jupiter.server_metal.proxmox_node_03
+    - jupiter.server_virtual.ad01
+    - jupiter.server_virtual.ad02
+    - jupiter.server_virtual.mail01
+    - jupiter.server_virtual.mail02
+    - jupiter.server_virtual.wildfly01
+    - jupiter.server_virtual.wildfly02
+    - jupiter.k8s.01
+    - jupiter.k8s.02
+    - jupiter.k8s.llm.01
+    - jupiter.cluster_virtualization.esx.cloudru
+    - jupiter.cluster_virtualization.proxmox.vk
+    - jupiter.cluster_virtualization.vmware.sber
+    - jupiter.sw_storage.01
+    - jupiter.backup.cyberbackup

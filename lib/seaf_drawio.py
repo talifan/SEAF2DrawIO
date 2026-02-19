@@ -19,6 +19,9 @@ class SeafDrawio:
         :param default_config: Словарь с конфигурацией по умолчанию.
         """
         self.default_config = default_config
+        self._yaml_cache = {}
+        self._pattern_cache = {}
+        self._object_cache = {}
 
     def load_config(self, config_file):
         """
@@ -27,7 +30,7 @@ class SeafDrawio:
         :return: Итоговая конфигурация.
         """
         try:
-            with open(config_file, 'r') as file:
+            with open(config_file, 'r', encoding='utf-8') as file:
                 user_config = yaml.safe_load(file) or {}
         except FileNotFoundError:
             print(f"Файл {config_file} не найден. Используются значения по умолчанию.")
@@ -60,6 +63,19 @@ class SeafDrawio:
                 default[key] = value
         return default
 
+    def _normalize_files(self, files):
+        """Normalize single path or iterable of paths into a tuple key for caching."""
+        if isinstance(files, str):
+            return (files,)
+        return tuple(files)
+
+    def get_merged_yaml(self, files):
+        """Return merged YAML content from cache (loads once per path set)."""
+        key = self._normalize_files(files)
+        if key not in self._yaml_cache:
+            self._yaml_cache[key] = self.read_and_merge_yaml(list(key))
+        return self._yaml_cache[key]
+
     def escape_xml_recursive(self, data):
         """
         Рекурсивно экранирует специальные символы XML в строках.
@@ -82,14 +98,32 @@ class SeafDrawio:
     def read_and_merge_yaml(files, **kwargs):
         """
         Читает и объединяет один или несколько YAML-файлов по ключам.
+        Если передан путь к директории, загружает все .yaml/.yml файлы из неё (рекурсивно).
 
-        :param files: Путь к одному файлу (str) или список путей (list)
+        :param files: Путь к одному файлу/директории (str) или список путей (list)
         :return: dict - объединённый YAML-документ
         """
 
         # Поддержка одного файла как строки
         if isinstance(files, str):
             files = [files]
+
+        # Разворачивание директорий в список файлов
+        expanded_files = []
+        for path in files:
+            if os.path.isdir(path):
+                # Если директория, берем все .yaml/.yml
+                for root, _, filenames in os.walk(path):
+                    for f in filenames:
+                        if f.lower().endswith(('.yaml', '.yml')):
+                            # Игнорируем файлы, начинающиеся с точки или подчеркивания (опционально, но полезно)
+                            if not f.startswith(('.', '_')): 
+                                expanded_files.append(os.path.join(root, f))
+            else:
+                expanded_files.append(path)
+        
+        # Сортируем файлы для гарантированного порядка слияния
+        files = sorted(expanded_files)
 
         # Настройка слияния: работает с dict и списками
         merger = Merger(
@@ -139,15 +173,25 @@ class SeafDrawio:
             print("I/O error({0}): {1} : {2}".format(e.errno, e.strerror, file))
             sys.exit(1)
 
+    def get_pattern(self, file):
+        """Load pattern YAML once and return a deepcopy for safe reuse."""
+        key = os.path.abspath(file)
+        if key not in self._pattern_cache:
+            self._pattern_cache[key] = self.read_yaml_file(file)
+        return deepcopy(self._pattern_cache[key])
+
+
     @staticmethod
     def append_to_dict(d, key, value):
-        try:
-            if value not in d[key]:
-                d[key].append(value)
-
-        except KeyError:
-            d[key] = []
-            d[key].append(value)
+        container = d.get(key)
+        if container is None:
+            container = []
+            d[key] = container
+        if isinstance(container, set):
+            container.add(value)
+        else:
+            if value not in container:
+                container.append(value)
 
     def find_key_value(self, data, target_key):
         """
@@ -308,8 +352,18 @@ class SeafDrawio:
             :param kwargs['type'] find json which contain value in key, kwargs['sort'] sorting by key
             :return: json object.
         """
+        cache_key = (self._normalize_files(file), key, kwargs.get('type'), kwargs.get('sort'))
         try:
-            x = json.loads(json.dumps(self.read_and_merge_yaml(file)[key]))
+            if cache_key in self._object_cache:
+                return deepcopy(self._object_cache[cache_key])
+
+            merged = self.get_merged_yaml(file)
+            if key not in merged:
+                self._object_cache[cache_key] = {}
+                return {}
+
+            source = merged[key]
+
             if kwargs.get('type'):
 
                 if kwargs['type'].find(":") != -1:
@@ -317,19 +371,26 @@ class SeafDrawio:
                 else:
                     k1, v1 = 'type', kwargs['type']
 
-                r = {k2: v2 for k2, v2 in x.items() if self.list_contain(self.find_key_value(v2, k1), v1)}
+                r = {k2: v2 for k2, v2 in source.items() if self.list_contain(self.find_key_value(v2, k1), v1)}
 
                 if kwargs.get('sort'):
                     try:
-                        return dict(sorted(r.items(), key=lambda item: self.find_value_by_key(item[1], kwargs["sort"])))
+                        sorted_r = dict(sorted(r.items(), key=lambda item: self.find_value_by_key(item[1], kwargs["sort"])))
+                        result = sorted_r
                     except TypeError:
                         print(
-                            f" INFO: При сортировке объектов: '{key}' выявлен не корректный параметр: '{kwargs.get('sort')}'")
-                        pass
-                return r
+                            f" INFO: ??? ?????????? ????????: '{key}' ??????? ?? ?????????? ????????: '{kwargs.get('sort')}'")
+                        result = r
+                else:
+                    result = r
             else:
-                return x
+                result = source
+
+            # Cache deep copy to keep pristine data for reuse
+            self._object_cache[cache_key] = deepcopy(result)
+            return deepcopy(result)
         except KeyError as e:
+            self._object_cache[cache_key] = {}
             return {}
 
 
@@ -444,31 +505,13 @@ class SeafDrawio:
 
     def get_data_from_diagram(self, file_name):
         """
-            Извлекает данные из диаграммы, представленной в файле, и формирует словарь с атрибутами объектов.
-
-            Функция выполняет следующие шаги:
-            1. Загружает диаграмму из указанного файла.
-            2. Проходит по всем объектам диаграммы (по каждому листу и каждому объекту на листе).
-            3. Извлекает атрибуты объектов с помощью функции `get_tag_attr`.
-            4. Возвращает словарь, содержащий все собранные данные.
-
-            :param file_name: str
-                Путь к файлу диаграммы (например, .drawio файл).
-
-            :return: dict
-                Словарь, где ключи — это идентификаторы объектов, а значения — их атрибуты.
-                Пример структуры:
-                    {
-                        'object_id_1': {'attr1': 'value1', 'attr2': 'value2'},
-                        'object_id_2': {'attr1': 'value3', 'attr2': 'value4'}
-                    }
-
-            Примечания:
-                - Первый лист диаграммы обрабатывается с исключением объектов с ID "0101" и "0103".
-                - Для каждого объекта используется функция `get_tag_attr`, которая извлекает атрибуты из XML-тега.
-            """
+            Извлекает данные из диаграммы...
+        """
         diagram = drawio_diagram()
-        diagram.from_file(filename=file_name)
+        # Fix encoding issue on Windows by reading file manually
+        with open(file_name, "r", encoding="utf-8") as f:
+            diagram.from_xml(f.read())
+        
         objects_data = {}
 
         # Формируем dict из объектов диаграмм

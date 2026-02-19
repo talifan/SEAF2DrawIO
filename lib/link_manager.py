@@ -1,4 +1,6 @@
 import xml.etree.ElementTree as ET
+from lib.schemas import SeafSchema
+
 
 def find_parent(root, target):
     """Находит родительский элемент для target в дереве root"""
@@ -153,10 +155,11 @@ def draw_verify(diagram_ids, diagram, pending_missing_links):
 def advanced_analysis(conf, expected_counts, expected_data, pattern_specs, d):
 
     ignore_object_ids = {"981", "991"}
+    is_debug = conf.get('debug', False)
 
     # Optional verification summary against final generated file
     try:
-        if conf.get('verify_generation'):
+        if conf.get('verify_generation') or is_debug:
             final_path = conf['output_file']
             tree = ET.parse(final_path)
             root_xml = tree.getroot()
@@ -179,7 +182,8 @@ def advanced_analysis(conf, expected_counts, expected_data, pattern_specs, d):
                     if oid in ignore_object_ids:
                         continue
                     # Logical links: use OID (semantic id) if available, skip non-edge objects
-                    if schema == 'seaf.ta.services.logical_link':
+                    _LOGICAL_LINK_SCHEMAS = {'seaf.ta.services.logical_link', SeafSchema.LOGICAL_LINK}
+                    if schema in _LOGICAL_LINK_SCHEMAS:
                         cell = obj.find('mxCell')
                         if cell is None or cell.get('edge') != '1':
                             continue
@@ -193,7 +197,8 @@ def advanced_analysis(conf, expected_counts, expected_data, pattern_specs, d):
                     continue
                 if oid in ignore_object_ids:
                     continue
-                if schema == 'seaf.ta.services.logical_link':
+                _LOGICAL_LINK_SCHEMAS = {'seaf.ta.services.logical_link', 'seaf.company.ta.services.logical_links'}
+                if schema in _LOGICAL_LINK_SCHEMAS:
                     cell = obj.find('mxCell')
                     if cell is None or cell.get('edge') != '1':
                         continue
