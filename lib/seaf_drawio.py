@@ -98,14 +98,32 @@ class SeafDrawio:
     def read_and_merge_yaml(files, **kwargs):
         """
         Читает и объединяет один или несколько YAML-файлов по ключам.
+        Если передан путь к директории, загружает все .yaml/.yml файлы из неё (рекурсивно).
 
-        :param files: Путь к одному файлу (str) или список путей (list)
+        :param files: Путь к одному файлу/директории (str) или список путей (list)
         :return: dict - объединённый YAML-документ
         """
 
         # Поддержка одного файла как строки
         if isinstance(files, str):
             files = [files]
+
+        # Разворачивание директорий в список файлов
+        expanded_files = []
+        for path in files:
+            if os.path.isdir(path):
+                # Если директория, берем все .yaml/.yml
+                for root, _, filenames in os.walk(path):
+                    for f in filenames:
+                        if f.lower().endswith(('.yaml', '.yml')):
+                            # Игнорируем файлы, начинающиеся с точки или подчеркивания (опционально, но полезно)
+                            if not f.startswith(('.', '_')): 
+                                expanded_files.append(os.path.join(root, f))
+            else:
+                expanded_files.append(path)
+        
+        # Сортируем файлы для гарантированного порядка слияния
+        files = sorted(expanded_files)
 
         # Настройка слияния: работает с dict и списками
         merger = Merger(
@@ -487,31 +505,13 @@ class SeafDrawio:
 
     def get_data_from_diagram(self, file_name):
         """
-            Извлекает данные из диаграммы, представленной в файле, и формирует словарь с атрибутами объектов.
-
-            Функция выполняет следующие шаги:
-            1. Загружает диаграмму из указанного файла.
-            2. Проходит по всем объектам диаграммы (по каждому листу и каждому объекту на листе).
-            3. Извлекает атрибуты объектов с помощью функции `get_tag_attr`.
-            4. Возвращает словарь, содержащий все собранные данные.
-
-            :param file_name: str
-                Путь к файлу диаграммы (например, .drawio файл).
-
-            :return: dict
-                Словарь, где ключи — это идентификаторы объектов, а значения — их атрибуты.
-                Пример структуры:
-                    {
-                        'object_id_1': {'attr1': 'value1', 'attr2': 'value2'},
-                        'object_id_2': {'attr1': 'value3', 'attr2': 'value4'}
-                    }
-
-            Примечания:
-                - Первый лист диаграммы обрабатывается с исключением объектов с ID "0101" и "0103".
-                - Для каждого объекта используется функция `get_tag_attr`, которая извлекает атрибуты из XML-тега.
-            """
+            Извлекает данные из диаграммы...
+        """
         diagram = drawio_diagram()
-        diagram.from_file(filename=file_name)
+        # Fix encoding issue on Windows by reading file manually
+        with open(file_name, "r", encoding="utf-8") as f:
+            diagram.from_xml(f.read())
+        
         objects_data = {}
 
         # Формируем dict из объектов диаграмм

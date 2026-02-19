@@ -1,0 +1,17 @@
+seaf.company.ta.components.networks:
+  jupiter.network_device.test.valid_ref:
+    address: 192.168.100.2
+    description: Test device with valid network references
+    location:
+    - jupiter.dc_office.hq
+    model: Test Model
+    network_connection:
+    - jupiter.network.lan.office.inet_edge
+    - jupiter.network.lan.office.ext.lan
+    purpose: Testing valid network references
+    realization_type: Физический
+    segment: jupiter.network_segment.office.inet_edge
+    title: Test Valid Network Ref
+    type: МСЭ
+    stand:
+      - jupiter.stand.test

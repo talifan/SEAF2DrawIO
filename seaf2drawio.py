@@ -4,15 +4,18 @@ import re
 import os
 import argparse
 from copy import deepcopy
+from typing import Optional, Dict, List, Set, Any
 from lib import seaf_drawio
 from lib.link_manager import remove_obsolete_links, draw_verify, advanced_analysis
+from lib.schemas import SeafSchema
+from lib.drawio_utils import format_number, float_attr
 import xml.etree.ElementTree as ET
 import xml.sax.saxutils as saxutils
 
 patterns_dir = 'data/patterns/'
 diagram = drawio_diagram()
 node_xml_default = diagram.drawio_node_object_xml
-root_object = 'seaf.ta.services.dc_region'
+root_object = SeafSchema.DC_REGION
 diagram_pages = {'main': ['Main Schema'], 'office': [], 'dc': []}
 diagram_ids = {'Main Schema': set()}
 conf = {}
@@ -49,6 +52,7 @@ def cli_vars(config):
                             required=False)
         parser.add_argument("-p", "--pattern", type=dst_validator, action=seaf_drawio.ValidateFile, help="шаблон drawio",
                             required=False)
+        parser.add_argument("--debug", action="store_true", help="включить подробную диагностику")
         args = parser.parse_args()
         if args.src:
             config['data_yaml_file'] = args.src
@@ -56,6 +60,8 @@ def cli_vars(config):
             config['output_file'] = args.dst
         if args.pattern:
             config['drawio_pattern'] = args.pattern
+        if args.debug:
+            config['debug'] = True
         return config
 
     except argparse.ArgumentTypeError as e:
@@ -156,7 +162,7 @@ def add_pages(pattern):
         diagram.drawio_diagram_xml = diagram_xml_default
         diagram.go_to_diagram(page_name)
 
-def add_object(pattern, data, key_id):
+def add_object(pattern: Dict[str, Any], data: Dict[str, Any], key_id: str) -> None:
 
     pattern_count, current_parent = 0, ''
     for xml_pattern in d.get_xml_pattern(pattern['xml'], key_id):
@@ -179,10 +185,27 @@ def add_object(pattern, data, key_id):
             except Exception:
                 pass
 
-            if current_parent != pattern['last_parent'] and pattern['parent_id'] !='network_connection':   # reset to default pattern
-                default_pattern['parent'] = get_parent_value(pattern, current_parent)
-                pattern.update(default_pattern)
+            parent_value = get_parent_value(pattern, current_parent)
+
+            if current_parent != pattern['last_parent'] and pattern['parent_id'] != 'network_connection':
+                # Для паттернов с parent_key (например, ISP->zone) один и тот же контейнер
+                # может использоваться при разных parent_id. Сохраняем/восстанавливаем позицию
+                # отдельно для каждого фактического контейнера.
+                if not pattern.get('global_positioning'):
+                    pos_map = pattern.setdefault('_position_by_parent_type', {})
+                    if parent_value in pos_map:
+                        saved = pos_map[parent_value]
+                        pattern['x'] = saved.get('x', pattern['x'])
+                        pattern['y'] = saved.get('y', pattern['y'])
+                        pattern['count'] = saved.get('count', pattern.get('count', 0))
+                    else:
+                        default_pattern['parent'] = parent_value
+                        pattern.update(default_pattern)
+
                 pattern['last_parent'] = current_parent
+
+            pattern['parent'] = parent_value
+            pattern['last_parent_type'] = parent_value
 
 
         try:
@@ -190,7 +213,7 @@ def add_object(pattern, data, key_id):
             safe_data = {k: saxutils.escape(str(v), entities={'"': "&quot;", "'": "&apos;"}) if v is not None else '' for k, v in data.items()}
             
             diagram.drawio_node_object_xml = diagram.drawio_node_object_xml.format_map(
-                safe_data | {'Group_ID': f'{key_id}_0', 'parent_id' : current_parent, 'parent_type' : default_pattern['parent'],
+                safe_data | {'Group_ID': f'{key_id}_0', 'parent_id' : current_parent, 'parent_type' : pattern.get('parent', ''),
                         'description' : saxutils.escape(str(data.get('description','') or ''), entities={'"': "&quot;", "'": "&apos;"}) })
             data['OID'] = key_id
             
@@ -236,18 +259,25 @@ def add_object(pattern, data, key_id):
 
             if pattern_count == 0:  # Change position of element
                 position_offset(object_pattern)
+            if pattern.get('parent'):
+                pos_map = pattern.setdefault('_position_by_parent_type', {})
+                pos_map[pattern['parent']] = {
+                    'x': pattern['x'],
+                    'y': pattern['y'],
+                    'count': pattern.get('count', 0),
+                }
             pattern_count += 1
 
         diagram.drawio_node_object_xml = node_xml_default
 
-def add_links(pattern,  **kwargs):
+def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
 
     diagram.drawio_link_object_xml = pattern['xml']
     schema_name = pattern['schema']
     type_filter = object_pattern.get('type')
 
     if kwargs.get('network_link'):
-        schema_name = 'seaf.ta.services.network_links'
+        schema_name = SeafSchema.NETWORK_LINK
         type_filter = None
 
     source_id = 'Unknown'
@@ -388,7 +418,7 @@ if __name__ == '__main__':
     diagram.from_xml(d.read_file_with_utf8(conf['drawio_pattern']))
     
     # Удаляем устаревшие связи перед добавлением новых
-    remove_obsolete_links(diagram, conf['data_yaml_file'], 'seaf.ta.components.network')
+    remove_obsolete_links(diagram, conf['data_yaml_file'], 'seaf.company.ta.components.networks')
     
     diagram_ids['Main Schema'] = set(d.get_object(conf['data_yaml_file'], root_object).keys())
     for file_name, pages in diagram_pages.items():
@@ -408,6 +438,8 @@ if __name__ == '__main__':
                     object_pattern.update({
                                 'count': 0,               # Счетчик объектов
                                 'last_parent': '',        # Триггер для отслеживания изменения родительского объекта
+                                'last_parent_type': '',   # Последний фактический контейнер (parent_key)
+                                '_position_by_parent_type': {},
                                 'parent': ''              # Родительский объект
                     })
                     default_pattern = deepcopy(object_pattern)

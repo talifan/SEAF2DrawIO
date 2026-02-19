@@ -1,11 +1,19 @@
-seaf.ta.components.hw_storage:
-  flix.hw_storage.01:
+seaf.company.ta.components.hw_storages:
+  jupiter.hw_storage.01:
+    title: СХД IBM
     description: Аппаратное хранилище
+    vendor: IBM Storwize 7000
+    volume: 10000
     disk_type: SSD
-    external_id: hw_storage.01
-    location:
-      - flix.dc.01
     protocols: FC, Ethernet
+    network_connection:
+    - jupiter.network.lan.192.168.101.0
+    - jupiter.network.lan.dc01.int.prod
+    location:
+    - jupiter.dc.moscow_dc01
+    stand:
+    - jupiter.stand.prod
+    external_id: hw_storage.01
     sber:
       compression_rate: 5
       dedup_rate: 2
@@ -20,8 +28,3 @@ seaf.ta.components.hw_storage:
       storage_console: https://console-hw-storage.01.flix.ru
       storage_controller_qty: 2
       storage_spare_disk_qty: 2
-    stand:
-      - flix.stand.prod
-    title: СХД IBM
-    vendor: IBM Storwize 7000
-    volume: 10000

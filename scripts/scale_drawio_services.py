@@ -2,15 +2,21 @@
 """Duplicate technical service objects inside a DrawIO file to stress-test layouts."""
 import argparse
 import copy
+import sys
+import os
 import xml.etree.ElementTree as ET
 
+# Adjust path to import lib
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from lib.schemas import SeafSchema
+from lib.drawio_utils import find_diagram
+
 TARGET_SCHEMAS = {
-    "seaf.ta.services.compute_service",
-    "seaf.ta.services.cluster",
-    "seaf.ta.services.cluster_virtualization",
-    "seaf.ta.services.k8s",
-    "seaf.ta.services.monitoring",
-    "seaf.ta.services.backup",
+    SeafSchema.COMPUTE_SERVICE,
+    SeafSchema.CLUSTER_VIRTUALIZATION,
+    SeafSchema.K8S,
+    SeafSchema.MONITORING,
+    SeafSchema.BACKUP,
 }
 
 ATTRS_TO_PATCH = ("id", "parent", "source", "target", "value", "label")
@@ -22,14 +28,6 @@ def patch_attributes(element, base_id, suffix):
             element.set(attr, value.replace(base_id, base_id + suffix))
     for child in element:
         patch_attributes(child, base_id, suffix)
-
-
-def find_diagram(mxfile_root, name):
-    for diagram in mxfile_root.findall("diagram"):
-        if diagram.get("name") == name:
-            return diagram
-    raise SystemExit(f"Diagram '{name}' not found")
-
 
 def parse_keywords(raw_value):
     if not raw_value:
@@ -67,7 +65,15 @@ def resolve_target_diagrams(mxfile_root, diagram_arg, keywords):
     names = [part.strip() for part in diag_value.split(",") if part.strip()]
     if not names:
         raise SystemExit("Diagram name is empty; provide --diagram value or use 'all'")
-    return [find_diagram(mxfile_root, name) for name in names]
+    
+    # Use imported find_diagram
+    found = []
+    for name in names:
+        d = find_diagram(mxfile_root, name)
+        if d is None:
+             raise SystemExit(f"Diagram '{name}' not found")
+        found.append(d)
+    return found
 
 
 def gather_related_elements(root, base_id):

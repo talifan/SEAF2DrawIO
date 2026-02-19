@@ -4,8 +4,18 @@ import argparse
 import ast
 import hashlib
 import math
+import sys
+import os
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
+
+# Adjust path to import lib
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from lib.schemas import SeafSchema
+from lib.drawio_utils import (
+    get_geometry, float_attr, format_number, find_diagram,
+    parse_list_literal, update_geometry
+)
 
 NODE_W = 40
 NODE_H = 40
@@ -25,33 +35,28 @@ MIN_CONTAINER_WIDTH = 170
 APPEND_RIGHT_GAP = 40
 
 TARGET_SCHEMAS = {
-    "seaf.ta.services.compute_service": {
+    SeafSchema.COMPUTE_SERVICE: {
         "group_by": ["service_type"],
         "group_name": "Прочие сервисы",
         "auto_segment": True,
     },
-    "seaf.ta.services.cluster": {
-        "group_by": ["service_type"],
-        "group_name": "Кластеры приложений",
-        "auto_segment": True,
-    },
-    "seaf.ta.services.cluster_virtualization": {
+    SeafSchema.CLUSTER_VIRTUALIZATION: {
         "group_name": "Платформы виртуализации",
         "auto_segment": True,
     },
-    "seaf.ta.services.k8s": {
+    SeafSchema.K8S: {
         "group_name": "Контейнерные платформы",
         "auto_segment": True,
     },
-    "seaf.ta.services.monitoring": {
+    SeafSchema.MONITORING: {
         "group_name": "Мониторинг",
         "auto_segment": True,
     },
-    "seaf.ta.services.backup": {
+    SeafSchema.BACKUP: {
         "group_name": "Резервное копирование",
         "auto_segment": True,
     },
-    "seaf.ta.services.kb": {
+    SeafSchema.KB: {
         "group_by": ["technology", "tag"],
         "group_name": "Средства кибербезопасности",
         "auto_segment": True,
@@ -103,27 +108,6 @@ SECURITY_ZONE_HINTS = {
     ),
 }
 
-
-def parse_list_literal(raw_value):
-    if not raw_value:
-        return []
-    if isinstance(raw_value, (list, tuple, set)):
-        return list(raw_value)
-    if isinstance(raw_value, str):
-        text = raw_value.strip()
-        if text.startswith("[") or text.startswith("(") or text.startswith("{"):
-            try:
-                data = ast.literal_eval(text)
-            except (ValueError, SyntaxError):
-                data = [raw_value]
-        else:
-            return [raw_value]
-        if isinstance(data, (list, tuple, set)):
-            return list(data)
-        return [data]
-    return [raw_value]
-
-
 def slugify(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8")).hexdigest()[:8]
 
@@ -146,7 +130,7 @@ def build_segment_zone_index(objects_by_id):
     segment_meta = {}
     zone_index = defaultdict(list)
     for seg_id, obj in objects_by_id.items():
-        if obj is None or obj.get("schema") != "seaf.ta.services.network_segment":
+        if obj is None or obj.get("schema") != SeafSchema.NETWORK_SEGMENT:
             continue
         zone, location = parse_metadata(obj)
         segment_meta[seg_id] = {"zone": zone, "location": location}
@@ -178,14 +162,11 @@ def collect_cells(root):
     return cells, objects
 
 
-def find_diagram(mxfile_root, name):
-    for diagram in mxfile_root.findall("diagram"):
-        if diagram.get("name") == name:
-            return diagram
-    raise SystemExit(f"Diagram '{name}' not found")
-
-
 def parse_keywords(raw_value):
+    # Overriding local because we need list of strings for match_diagram
+    # But wait, drawio_utils has parse_list_literal which returns list.
+    # But here we split by comma. drawio_utils handles it.
+    # But here we strip and lower.
     if not raw_value:
         return []
     if isinstance(raw_value, str):
@@ -221,22 +202,14 @@ def resolve_target_diagrams(mxfile_root, diagram_arg, keywords):
     names = [part.strip() for part in diag_value.split(",") if part.strip()]
     if not names:
         raise SystemExit("Diagram name is empty; provide --diagram value or use 'all'")
-    return [find_diagram(mxfile_root, name) for name in names]
-
-
-def get_geometry(cell):
-    if cell is None:
-        return None
-    return cell.find("mxGeometry")
-
-
-def float_attr(geom, key, default=0.0):
-    if geom is None:
-        return default
-    try:
-        return float(geom.get(key, default))
-    except (TypeError, ValueError):
-        return default
+    
+    found = []
+    for name in names:
+        d = find_diagram(mxfile_root, name)
+        if d is None:
+             raise SystemExit(f"Diagram '{name}' not found")
+        found.append(d)
+    return found
 
 
 def compute_group_box(count, node_w, node_h):
@@ -374,7 +347,7 @@ def resolve_segment_rules(segment_id, segment_meta, zone_index):
 
 
 def apply_security_hints(obj, segment_id, segment_meta, zone_index, derived_from_network=False):
-    if not segment_id or obj.get("schema") != "seaf.ta.services.kb":
+    if not segment_id or obj.get("schema") != SeafSchema.KB:
         return segment_id
     tag = (obj.get("tag") or "").lower()
     tech = (obj.get("technology") or "").lower()
@@ -403,7 +376,7 @@ def get_segments_bounds(objects_by_id):
     max_x = float("-inf")
     max_bottom = 0.0
     for obj in objects_by_id.values():
-        if obj is None or obj.get("schema") != "seaf.ta.services.network_segment":
+        if obj is None or obj.get("schema") != SeafSchema.NETWORK_SEGMENT:
             continue
         cell = obj.find("mxCell")
         if cell is None or cell.get("parent") != "001":
@@ -417,12 +390,6 @@ def get_segments_bounds(objects_by_id):
         max_x = max(max_x, x + width)
         max_bottom = max(max_bottom, y + height)
     return min_x if min_x != float("inf") else 0.0, max_x, max_bottom
-
-
-def format_number(value):
-    if isinstance(value, int) or value.is_integer():
-        return str(int(round(value)))
-    return f"{value:.2f}".rstrip("0").rstrip(".")
 
 
 def add_container(root_cell, segment_id, group_id, label, x, y, width, height):
@@ -802,4 +769,3 @@ def parse_args():
 
 if __name__ == "__main__":
     reflow_tech_services(parse_args())
-
