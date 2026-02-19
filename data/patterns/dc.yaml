@@ -1651,7 +1651,7 @@ ta_services_app_cluster:
 
 user_arm:
   xml : >
-    <mxCell id="{{id}}" value="" style="group" vertex="1" connectable="0" parent="002">
+    <mxCell id="{{id}}" value="" style="group" vertex="1" connectable="0" parent="{parent_id}">
       <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
     </mxCell>
     <object label="{title}" id="{{id}}">
@@ -1676,7 +1676,7 @@ user_arm:
 user_mobile:
   xml : >
     <object label="{{label}}" id="{{id}}">
-      <mxCell style="image;sketch=0;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/mscae/Mobile_Engagement.svg;" vertex="1" parent="002">
+      <mxCell style="image;sketch=0;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/mscae/Mobile_Engagement.svg;" vertex="1" parent="{parent_id}">
         <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
       </mxCell>
     </object>
@@ -1694,7 +1694,7 @@ user_mobile:
 user_terminal:
   xml : >
     <object label="{{label}}" OID="" id="{{id}}">
-      <mxCell style="image;aspect=fixed;perimeter=ellipsePerimeter;html=1;align=center;shadow=0;dashed=0;spacingTop=3;image=img/lib/active_directory/tablet_pc.svg;" vertex="1" parent="002">
+      <mxCell style="image;aspect=fixed;perimeter=ellipsePerimeter;html=1;align=center;shadow=0;dashed=0;spacingTop=3;image=img/lib/active_directory/tablet_pc.svg;" vertex="1" parent="{parent_id}">
         <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
       </mxCell>
     </object>
@@ -1711,7 +1711,7 @@ user_terminal:
 
 user_IoT:
   xml : >
-    <mxCell id="{{id}}" value="" style="group" vertex="1" connectable="0" parent="002">
+    <mxCell id="{{id}}" value="" style="group" vertex="1" connectable="0" parent="{parent_id}">
       <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
     </mxCell>
     <mxCell id="{{id}}" value="" style="group;container=0;" vertex="1" connectable="0" parent="{Group_ID}">
