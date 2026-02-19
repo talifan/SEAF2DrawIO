@@ -747,7 +747,7 @@ def parse_args():
     parser.add_argument("--diagram", default="all", help="Target diagram name or 'all'")
     parser.add_argument(
         "--diagram-filter",
-        default="DC,ЦОД",
+        default="DC,ЦОД,Office,Офис,Головной",
         help="Comma separated keywords for selecting diagrams when --diagram=all",
     )
     parser.add_argument(

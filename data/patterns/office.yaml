@@ -268,11 +268,11 @@ lan:
   parent_id: 'segment'
   type: "type:LAN"
   deep: 4
-  offset: 100
+  offset: 70
   x: -10
-  y: 140
+  y: 60
   w: 20
-  h: 200
+  h: 140
   algo: 'Y+'
 
 # ------------------------------------ Сетевые устройства ------------------------------------------------------------
@@ -1572,11 +1572,11 @@ user_arm:
   schema: 'seaf.company.ta.components.user_devices'
   parent_id: 'network_connection'
   type: "device_type:АРМ"
-  x: 30
-  y: 10
+  x: 160
+  y: 30
   w: 70
   h: 60
-  offset: 50
+  offset: 70
   deep: 3
   algo: 'Y+'
 
@@ -1590,11 +1590,11 @@ user_mobile:
   schema: 'seaf.company.ta.components.user_devices'
   parent_id: 'network_connection'
   type: "device_type:Мобильные рабочие места (МРМ)"
-  x: 60
-  y: 10
+  x: 170
+  y: 30
   w: 34
   h: 50
-  offset: 50
+  offset: 70
   deep: 3
   algo: 'Y+'
 
@@ -1608,11 +1608,11 @@ user_terminal:
   schema: 'seaf.company.ta.components.user_devices'
   parent_id: 'network_connection'
   type: "device_type:Терминалы сбора данных (ТСД)"
-  x: 80
-  y: 10
+  x: 170
+  y: 30
   w: 37
   h: 40
-  offset: 50
+  offset: 70
   deep: 3
   algo: 'Y+'
 
@@ -1638,11 +1638,11 @@ user_IoT:
   schema: 'seaf.company.ta.components.user_devices'
   parent_id: 'network_connection'
   type: "device_type:IoT"
-  x: 40
-  y: 80
+  x: 170
+  y: 30
   w: 37
   h: 40
-  offset: 30
+  offset: 70
   deep: 3
   algo: 'Y+'
 

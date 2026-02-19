@@ -3,6 +3,7 @@ import sys
 import re
 import os
 import argparse
+import subprocess
 from copy import deepcopy
 from typing import Optional, Dict, List, Set, Any
 from lib import seaf_drawio
@@ -33,7 +34,8 @@ DEFAULT_CONFIG = {
         "data_yaml_file": "data/example/test_seaf_ta_P41_v0.9.yaml",
         "drawio_pattern": "data/base.drawio",
         "output_file": "result/Sample_graph.drawio",
-        "verify_generation": False
+        "verify_generation": False,
+        "auto_layout_grid": False
     }
 }
 
@@ -404,6 +406,31 @@ def collect_ids():
         print(f"Exception Collect ID : {Ex}")
 
 
+def run_auto_layout_if_enabled(conf: Dict[str, Any]) -> None:
+    if not conf.get('auto_layout_grid'):
+        return
+
+    script_path = conf.get('auto_layout_script', os.path.join('scripts', 'layout_tech_services.py'))
+    cmd = [sys.executable, '-X', 'utf8', script_path, '-i', conf['output_file']]
+
+    if conf.get('auto_layout_diagram'):
+        cmd.extend(['--diagram', conf['auto_layout_diagram']])
+    if conf.get('auto_layout_filter'):
+        cmd.extend(['--diagram-filter', conf['auto_layout_filter']])
+
+    print("\n> Запускаю автоматическую раскладку по сетке ...")
+    try:
+        completed = subprocess.run(cmd, check=False, capture_output=True, text=True)
+        if completed.stdout:
+            print(completed.stdout.rstrip())
+        if completed.returncode != 0:
+            print(f"WARNING: auto-layout завершился с кодом {completed.returncode}")
+            if completed.stderr:
+                print(completed.stderr.rstrip())
+    except Exception as ex:
+        print(f"WARNING: не удалось запустить auto-layout: {ex}")
+
+
 if __name__ == '__main__':
 
     if sys.version_info < (3, 9):
@@ -472,6 +499,8 @@ if __name__ == '__main__':
 
     d.dump_file(filename=os.path.basename(conf['output_file']), folder=os.path.dirname(conf['output_file']),
                 content=diagram.drawing if os.path.dirname(conf['output_file']) else './')
+
+    run_auto_layout_if_enabled(conf)
 
     # Check additional result info ...
     advanced_analysis(conf, expected_counts, expected_data, pattern_specs, d)
