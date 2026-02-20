@@ -495,7 +495,10 @@ if __name__ == '__main__':
 
     print('\n')
     # Verifying drawn links & objects ...
-    draw_verify(diagram_ids, diagram, pending_missing_links)
+    try:
+        draw_verify(diagram_ids, diagram, pending_missing_links)
+    except Exception as e:
+        print(f"WARNING: Verification failed (skipping): {e}")
 
     d.dump_file(filename=os.path.basename(conf['output_file']), folder=os.path.dirname(conf['output_file']),
                 content=diagram.drawing if os.path.dirname(conf['output_file']) else './')

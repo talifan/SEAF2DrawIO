@@ -646,8 +646,6 @@ class SeafDrawio:
         # Populate the JSON object based on the schema's properties
         if "properties" in schema:
             for key, prop in schema["properties"].items():
-               # if (key == 'sber'):
-               #     print(f'--- {key} type: {prop.get("type")}')
                 if prop.get("type") and prop["type"] == "object" and "properties" in prop:
                     # Recursively create nested objects
                     json_obj[key] = self._create_json_from_schema(prop)

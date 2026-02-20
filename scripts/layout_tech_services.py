@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Re-layout technical services on a DrawIO page by grouping them inside target segments."""
 import argparse
-import ast
 import hashlib
 import math
 import sys
@@ -113,17 +112,11 @@ def slugify(text: str) -> str:
 
 
 def parse_metadata(obj):
-    sber_attr = obj.get("sber")
-    location = ""
-    zone = ""
-    if sber_attr:
-        try:
-            data = ast.literal_eval(sber_attr)
-            location = data.get("location", "") if isinstance(data, dict) else ""
-            zone = data.get("zone", "") if isinstance(data, dict) else ""
-        except (ValueError, SyntaxError):
-            pass
-    return zone or "", location or ""
+    zone = obj.get("zone") or ""
+    location = obj.get("location") or ""
+    if isinstance(location, list):
+        location = location[0] if location else ""
+    return str(zone), str(location)
 
 
 def build_segment_zone_index(objects_by_id):
