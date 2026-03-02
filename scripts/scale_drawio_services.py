@@ -11,12 +11,16 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from lib.schemas import SeafSchema
 from lib.drawio_utils import find_diagram
 
-TARGET_SCHEMAS = {
+SERVICE_SCHEMAS = {
     SeafSchema.COMPUTE_SERVICE,
     SeafSchema.CLUSTER_VIRTUALIZATION,
     SeafSchema.K8S,
     SeafSchema.MONITORING,
     SeafSchema.BACKUP,
+}
+
+NETWORK_SCHEMAS = {
+    SeafSchema.NETWORK,
 }
 
 ATTRS_TO_PATCH = ("id", "parent", "source", "target", "value", "label")
@@ -131,6 +135,12 @@ def parse_args():
         help="Comma separated keywords for selecting diagrams when --diagram=all",
     )
     parser.add_argument("--factor", type=int, default=3, help="Replication factor")
+    parser.add_argument(
+        "--target",
+        choices=("services", "networks", "all"),
+        default="services",
+        help="What object families to duplicate",
+    )
     return parser.parse_args()
 
 
@@ -138,12 +148,18 @@ if __name__ == "__main__":
     args = parse_args()
     if args.factor < 2:
         raise SystemExit("Factor must be >= 2")
+    if args.target == "services":
+        target_schemas = SERVICE_SCHEMAS
+    elif args.target == "networks":
+        target_schemas = NETWORK_SCHEMAS
+    else:
+        target_schemas = SERVICE_SCHEMAS | NETWORK_SCHEMAS
     tree = ET.parse(args.input)
     root = tree.getroot()
     diagrams = resolve_target_diagrams(root, args.diagram, args.diagram_filter)
     stats = []
     for diagram in diagrams:
-        originals_added, elements_added = duplicate_services(diagram, args.factor, TARGET_SCHEMAS)
+        originals_added, elements_added = duplicate_services(diagram, args.factor, target_schemas)
         stats.append((diagram.get("name", "<unnamed>"), originals_added, elements_added))
     tree.write(args.output, encoding="utf-8", xml_declaration=True)
     for name, originals_added, elements_added in stats:

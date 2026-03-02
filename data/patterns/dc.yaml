@@ -186,7 +186,7 @@ segment_ext_wan_edge:
   parent_id: 'location'
   type: "zone:EXT-WAN-EDGE"
   x: 0
-  y: 650
+  y: 507
   w: 195
   h: 297
   offset: 0
@@ -231,6 +231,63 @@ segment_transport_wan:
   deep: 0
   algo: 'none'
 
+wan_edge_internet_strip:
+  xml : >
+    <object label="&lt;div style=&quot;font-size: 1px&quot;&gt;&lt;p style=&quot;align:center;margin-left:0;margin-right:0;margin-top:0px;margin-bottom:0px;text-indent:0;valign:middle;direction:ltr;&quot;&gt;&lt;font style=&quot;font-size:9.88px;font-family:Calibri;color:#000000;direction:ltr;letter-spacing:0px;line-height:90%;opacity:1&quot;&gt;&lt;b&gt;{title}&lt;/b&gt;&lt;/font&gt;&lt;font style=&quot;font-size:11.29px;font-family:Calibri;color:#000000;direction:ltr;letter-spacing:0px;line-height:90%;opacity:1&quot;&gt;&lt;b&gt;&lt;br/&gt;&lt;/b&gt;&lt;/font&gt;&lt;/p&gt;&lt;/div&gt;" id="{{id}}">
+      <mxCell style="verticalAlign=middle;align=center;vsdxID=35397;rotation=270;fillColor=#c0cfe2;gradientColor=none;shape=stencil(nZFLDsIwDERP4y0KyQKxLuUCnCAihliEpEpL+ZyetANS6YJFs7JnXmxpTKZqvW2YtGq7nC58F9d5MjvSWqLnLF2pyNRkqlPKfM7pFh36xhZSq1Fhhz/rgdbK5uNBXgxts9r+PjAYck39sPwBVMF6foYp9HugQeIE/ZqL4D/oQnC2vhRjPAhOQkC6U38eZ5FwClO/AQ==);strokeColor=#000000;labelBackgroundColor=none;rounded=1;html=1;whiteSpace=wrap;" vertex="1" parent="{parent_id}">
+        <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{height}}" height="{{width}}" as="geometry" />
+      </mxCell>
+    </object>
+  schema: 'seaf.company.ta.services.networks'
+  parent_id: 'segment'
+  type: "type:WAN"
+  id_regex: '(^|\.)network\.wan\..*internet_edge$'
+  deep: 2
+  offset: 110
+  x: 670
+  y: -250
+  w: 20
+  h: 200
+  algo: 'Y+'
+
+wan_edge_transport_strip:
+  xml : >
+    <object label="&lt;div style=&quot;font-size: 1px&quot;&gt;&lt;p style=&quot;align:center;margin-left:0;margin-right:0;margin-top:0px;margin-bottom:0px;text-indent:0;valign:middle;direction:ltr;&quot;&gt;&lt;font style=&quot;font-size:9.88px;font-family:Calibri;color:#000000;direction:ltr;letter-spacing:0px;line-height:90%;opacity:1&quot;&gt;&lt;b&gt;{title}&lt;/b&gt;&lt;/font&gt;&lt;font style=&quot;font-size:11.29px;font-family:Calibri;color:#000000;direction:ltr;letter-spacing:0px;line-height:90%;opacity:1&quot;&gt;&lt;b&gt;&lt;br/&gt;&lt;/b&gt;&lt;/font&gt;&lt;/p&gt;&lt;/div&gt;" id="{{id}}">
+      <mxCell style="verticalAlign=middle;align=center;vsdxID=35397;rotation=270;fillColor=#c0cfe2;gradientColor=none;shape=stencil(nZFLDsIwDERP4y0KyQKxLuUCnCAihliEpEpL+ZyetANS6YJFs7JnXmxpTKZqvW2YtGq7nC58F9d5MjvSWqLnLF2pyNRkqlPKfM7pFh36xhZSq1Fhhz/rgdbK5uNBXgxts9r+PjAYck39sPwBVMF6foYp9HugQeIE/ZqL4D/oQnC2vhRjPAhOQkC6U38eZ5FwClO/AQ==);strokeColor=#000000;labelBackgroundColor=none;rounded=1;html=1;whiteSpace=wrap;" vertex="1" parent="{parent_id}">
+        <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{height}}" height="{{width}}" as="geometry" />
+      </mxCell>
+    </object>
+  schema: 'seaf.company.ta.services.networks'
+  parent_id: 'segment'
+  type: "type:WAN"
+  id_regex: '(^|\.)network\.wan\..*(ext_wan_edge|ext_van_edge|int_wan_edge|int_van_edge)$'
+  deep: 4
+  offset: 110
+  x: 670
+  y: -420
+  w: 20
+  h: 200
+  algo: 'Y+'
+
+wan_edge:
+  xml : >
+    <object label="&lt;div style=&quot;font-size: 1px&quot;&gt;&lt;p style=&quot;align:center;margin-left:0;margin-right:0;margin-top:0px;margin-bottom:0px;text-indent:0;valign:middle;direction:ltr;&quot;&gt;&lt;font style=&quot;font-size:9.88px;font-family:Calibri;color:#000000;direction:ltr;letter-spacing:0px;line-height:90%;opacity:1&quot;&gt;&lt;b&gt;{title}&lt;/b&gt;&lt;/font&gt;&lt;font style=&quot;font-size:11.29px;font-family:Calibri;color:#000000;direction:ltr;letter-spacing:0px;line-height:90%;opacity:1&quot;&gt;&lt;b&gt;&lt;br/&gt;&lt;/b&gt;&lt;/font&gt;&lt;/p&gt;&lt;/div&gt;" id="{{id}}">
+      <mxCell style="verticalAlign=middle;align=center;vsdxID=35397;rotation=270;fillColor=#c0cfe2;gradientColor=none;shape=stencil(nZFLDsIwDERP4y0KyQKxLuUCnCAihliEpEpL+ZyetANS6YJFs7JnXmxpTKZqvW2YtGq7nC58F9d5MjvSWqLnLF2pyNRkqlPKfM7pFh36xhZSq1Fhhz/rgdbK5uNBXgxts9r+PjAYck39sPwBVMF6foYp9HugQeIE/ZqL4D/oQnC2vhRjPAhOQkC6U38eZ5FwClO/AQ==);strokeColor=#000000;labelBackgroundColor=none;rounded=1;html=1;whiteSpace=wrap;" vertex="1" parent="{parent_id}">
+        <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{height}}" height="{{width}}" as="geometry" />
+      </mxCell>
+    </object>
+  schema: 'seaf.company.ta.services.networks'
+  parent_id: 'segment'
+  type: "type:WAN"
+  id_regex: '(^|\.)network\.wan\.(?!isp\.|sp\.).*(internet_edge|ext_wan_edge|ext_van_edge|int_wan_edge|int_van_edge)$'
+  deep: 4
+  offset: 100
+  x: 20
+  y: 130
+  w: 20
+  h: 150
+  algo: 'Y+'
+
 isp:
   xml : >
     <mxCell id="{{id}}" value="" style="group;noLabel=1;" parent="{segment}" vertex="1">
@@ -250,6 +307,7 @@ isp:
   schema: 'seaf.company.ta.services.networks'
   parent_id: 'segment'
   type: "type:WAN"
+  id_regex: '(^|\.)network\.wan\.(isp|sp)\.'
   deep: 15
   offset: 30
   x: 670

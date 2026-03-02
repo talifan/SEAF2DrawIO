@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import math
+import re
 import sys
 import os
 import xml.etree.ElementTree as ET
@@ -32,6 +33,25 @@ BOTTOM_MARGIN = 40
 MAX_COLS = 4
 MIN_CONTAINER_WIDTH = 170
 APPEND_RIGHT_GAP = 40
+CATEGORY_GAP_X = 40
+FLOW_ITEM_GAP_X = 20
+FLOW_ITEM_GAP_Y = 20
+
+SERVICE_Z_ORDER_SCHEMAS = {
+    SeafSchema.COMPUTE_SERVICE,
+    SeafSchema.CLUSTER_VIRTUALIZATION,
+    SeafSchema.K8S,
+    SeafSchema.BACKUP,
+    SeafSchema.MONITORING,
+    SeafSchema.STORAGE,
+    SeafSchema.HW_STORAGE,
+    SeafSchema.KB,
+}
+
+DEVICE_Z_ORDER_SCHEMAS = {
+    SeafSchema.COMPONENT_NETWORK,
+    SeafSchema.COMPONENT_USER_DEVICE,
+}
 
 TARGET_SCHEMAS = {
     SeafSchema.COMPUTE_SERVICE: {
@@ -153,6 +173,321 @@ def collect_cells(root):
         elif elem.tag == "mxCell" and elem.get("id"):
             cells[elem.get("id")] = elem
     return cells, objects
+
+
+def resolve_base_id(elem, direct_objects):
+    elem_id = elem.get("id") or ""
+    if not elem_id:
+        return ""
+    if elem.tag == "object":
+        return elem_id
+    if elem_id.startswith("tech_group_"):
+        return elem_id
+    match = re.match(r"^(.*)_\d+$", elem_id)
+    if match and match.group(1) in direct_objects:
+        return match.group(1)
+    return elem_id
+
+
+def resolve_z_order_priority(elem, direct_objects):
+    elem_id = elem.get("id") or ""
+    if elem.tag == "mxCell" and elem_id.startswith("tech_group_"):
+        return 10
+
+    owner = None
+    if elem.tag == "object":
+        owner = elem
+    else:
+        base_id = resolve_base_id(elem, direct_objects)
+        owner = direct_objects.get(base_id)
+
+    if owner is None:
+        return None
+
+    schema = owner.get("schema")
+    if schema in SERVICE_Z_ORDER_SCHEMAS:
+        return 20
+    if schema == SeafSchema.NETWORK:
+        return 30
+    if schema in DEVICE_Z_ORDER_SCHEMAS:
+        return 40
+    return None
+
+
+def normalize_z_order(root_cell):
+    direct_objects = {
+        elem.get("id"): elem
+        for elem in root_cell
+        if elem.tag == "object" and elem.get("id")
+    }
+
+    records = {}
+    ordered_ids = []
+    original_managed = []
+
+    for index, elem in enumerate(list(root_cell)):
+        priority = resolve_z_order_priority(elem, direct_objects)
+        if priority is None:
+            continue
+        base_id = resolve_base_id(elem, direct_objects)
+        if not base_id:
+            continue
+        if base_id not in records:
+            records[base_id] = {"priority": priority, "index": index, "elements": []}
+            ordered_ids.append(base_id)
+        records[base_id]["elements"].append(elem)
+        original_managed.append(elem)
+
+    if not original_managed:
+        return False
+
+    sorted_ids = sorted(
+        ordered_ids,
+        key=lambda base_id: (records[base_id]["priority"], records[base_id]["index"]),
+    )
+    reordered = [elem for base_id in sorted_ids for elem in records[base_id]["elements"]]
+    if reordered == original_managed:
+        return False
+
+    managed_ids = {id(elem) for elem in original_managed}
+    for elem in list(root_cell):
+        if id(elem) in managed_ids:
+            root_cell.remove(elem)
+    for elem in reordered:
+        root_cell.append(elem)
+    return True
+
+
+def shift_primary_cell(cell, x=None, y=None):
+    if cell is None:
+        return False
+    geom = get_geometry(cell)
+    if geom is None:
+        return False
+    raw_w = float_attr(geom, "width")
+    raw_h = float_attr(geom, "height")
+    style = cell.get("style", "")
+    rotated = "rotation=270" in style or "rotation=90" in style
+    offset = (raw_w - raw_h) / 2.0 if rotated else 0.0
+    changed = False
+    if x is not None:
+        target_x = x - offset if rotated else x
+        current_x = float_attr(geom, "x")
+        if abs(current_x - target_x) >= 0.01:
+            geom.set("x", format_number(target_x))
+            changed = True
+    if y is not None:
+        target_y = y + offset if rotated else y
+        current_y = float_attr(geom, "y")
+        if abs(current_y - target_y) >= 0.01:
+            geom.set("y", format_number(target_y))
+            changed = True
+    return changed
+
+
+def get_layout_box(cell):
+    geom = get_geometry(cell)
+    if geom is None:
+        return 0.0, 0.0
+    width = float_attr(geom, "width")
+    height = float_attr(geom, "height")
+    style = cell.get("style", "")
+    if "rotation=270" in style or "rotation=90" in style:
+        return height, width
+    return width, height
+
+
+def get_visual_position(cell):
+    geom = get_geometry(cell)
+    if geom is None:
+        return 0.0, 0.0
+    x = float_attr(geom, "x")
+    y = float_attr(geom, "y")
+    raw_w = float_attr(geom, "width")
+    raw_h = float_attr(geom, "height")
+    style = cell.get("style", "")
+    if "rotation=270" in style or "rotation=90" in style:
+        offset = (raw_w - raw_h) / 2.0
+        return x + offset, y - offset
+    return x, y
+
+
+def collect_flow_items(root_cell, cells_by_id):
+    items_by_segment = defaultdict(lambda: defaultdict(list))
+
+    for elem in root_cell:
+        if elem.tag != "object":
+            continue
+        schema = elem.get("schema")
+        if schema not in {SeafSchema.NETWORK, *DEVICE_Z_ORDER_SCHEMAS}:
+            continue
+        primary_cell = find_primary_cell(elem, cells_by_id)
+        if primary_cell is None:
+            continue
+        segment_id = primary_cell.get("parent") or ""
+        if not segment_id.startswith("sberfactoring.network_segment."):
+            continue
+        geom = get_geometry(primary_cell)
+        if geom is None:
+            continue
+        layout_w, layout_h = get_layout_box(primary_cell)
+        category = "networks" if schema == SeafSchema.NETWORK else "devices"
+        visual_x, visual_y = get_visual_position(primary_cell)
+        items_by_segment[segment_id][category].append(
+            {
+                "id": elem.get("id") or primary_cell.get("id") or "",
+                "cell": primary_cell,
+                "x": visual_x,
+                "y": visual_y,
+                "w": float_attr(geom, "width"),
+                "h": float_attr(geom, "height"),
+                "layout_w": layout_w,
+                "layout_h": layout_h,
+            }
+        )
+
+    for cell in root_cell:
+        if cell.tag != "mxCell":
+            continue
+        group_id = cell.get("id") or ""
+        if not group_id.startswith("tech_group_"):
+            continue
+        segment_id = cell.get("parent") or ""
+        if not segment_id.startswith("sberfactoring.network_segment."):
+            continue
+        geom = get_geometry(cell)
+        if geom is None:
+            continue
+        layout_w, layout_h = get_layout_box(cell)
+        visual_x, visual_y = get_visual_position(cell)
+        items_by_segment[segment_id]["services"].append(
+            {
+                "id": group_id,
+                "cell": cell,
+                "x": visual_x,
+                "y": visual_y,
+                "w": float_attr(geom, "width"),
+                "h": float_attr(geom, "height"),
+                "layout_w": layout_w,
+                "layout_h": layout_h,
+            }
+        )
+
+    return items_by_segment
+
+
+def layout_items_in_columns(items, start_x, start_y, bottom_limit):
+    placements = []
+    col_x = start_x
+    col_y = start_y
+    col_width = 0.0
+    max_right = start_x
+    max_bottom = start_y
+
+    for item in items:
+        if col_y > start_y and col_y + item["layout_h"] > bottom_limit:
+            col_x += col_width + FLOW_ITEM_GAP_X
+            col_y = start_y
+            col_width = 0.0
+
+        placements.append((item, col_x, col_y))
+        col_width = max(col_width, item["layout_w"])
+        max_right = max(max_right, col_x + item["layout_w"])
+        max_bottom = max(max_bottom, col_y + item["layout_h"])
+        col_y += item["layout_h"] + FLOW_ITEM_GAP_Y
+
+    return placements, max_right, max_bottom
+
+
+def reflow_segment_category_order(root_cell, cells_by_id, objects_by_id):
+    items_by_segment = collect_flow_items(root_cell, cells_by_id)
+    changed = False
+
+    for segment_id, categories in items_by_segment.items():
+        present = [name for name in ("devices", "networks", "services") if categories.get(name)]
+        if len(present) < 2:
+            continue
+
+        segment_obj = objects_by_id.get(segment_id)
+        if segment_obj is None:
+            continue
+        segment_geom = get_geometry(segment_obj.find("mxCell"))
+        if segment_geom is None:
+            continue
+
+        segment_height = float_attr(segment_geom, "height")
+        segment_width = float_attr(segment_geom, "width")
+        top_pad = SEGMENT_PADDING_X
+        bottom_limit = max(top_pad, segment_height - BOTTOM_MARGIN)
+        available_width = max(0.0, segment_width - SEGMENT_PADDING_X - SEGMENT_PADDING_RIGHT)
+        ordered_categories = []
+
+        for category in ("devices", "networks", "services"):
+            items = categories.get(category, [])
+            if not items:
+                continue
+            ordered = sorted(items, key=lambda entry: (entry["y"], entry["x"], entry["id"]))
+            preview, category_right, category_bottom = layout_items_in_columns(
+                ordered,
+                0.0,
+                top_pad,
+                bottom_limit,
+            )
+            ordered_categories.append(
+                {
+                    "name": category,
+                    "items": ordered,
+                    "width": category_right,
+                    "height": category_bottom - top_pad,
+                    "preview": preview,
+                }
+            )
+
+        horizontal_width = 0.0
+        if ordered_categories:
+            horizontal_width = sum(entry["width"] for entry in ordered_categories)
+            horizontal_width += CATEGORY_GAP_X * (len(ordered_categories) - 1)
+
+        use_horizontal = horizontal_width <= available_width
+        max_right = SEGMENT_PADDING_X
+        max_bottom = top_pad
+
+        if use_horizontal:
+            cursor_x = SEGMENT_PADDING_X
+            for category in ordered_categories:
+                placements, category_right, category_bottom = layout_items_in_columns(
+                    category["items"],
+                    cursor_x,
+                    top_pad,
+                    bottom_limit,
+                )
+                for item, pos_x, pos_y in placements:
+                    if shift_primary_cell(item["cell"], x=pos_x, y=pos_y):
+                        changed = True
+                max_right = max(max_right, category_right)
+                max_bottom = max(max_bottom, category_bottom)
+                cursor_x = category_right + CATEGORY_GAP_X
+        else:
+            cursor_y = top_pad
+            for category in ordered_categories:
+                placements, category_right, category_bottom = layout_items_in_columns(
+                    category["items"],
+                    SEGMENT_PADDING_X,
+                    cursor_y,
+                    bottom_limit,
+                )
+                for item, pos_x, pos_y in placements:
+                    if shift_primary_cell(item["cell"], x=pos_x, y=pos_y):
+                        changed = True
+                max_right = max(max_right, category_right)
+                max_bottom = max(max_bottom, category_bottom)
+                cursor_y = category_bottom + FLOW_ITEM_GAP_Y
+
+        if max_bottom + BOTTOM_MARGIN > segment_height:
+            segment_geom.set("height", format_number(max_bottom + BOTTOM_MARGIN))
+            changed = True
+
+    return changed
 
 
 def parse_keywords(raw_value):
@@ -532,7 +867,15 @@ def process_diagram(diagram, args):
 
     if not managed_items:
         result["reason"] = "technical services not found on the page"
-        print(f"[{diagram_name}] {result['reason']}; nothing to reflow.")
+        geometry_changed = reflow_segment_category_order(root_cell, cells_by_id, objects_by_id)
+        z_order_changed = normalize_z_order(root_cell)
+        result["changed"] = geometry_changed or z_order_changed
+        if z_order_changed:
+            print(f"[{diagram_name}] {result['reason']}; z-order normalized.")
+        elif geometry_changed:
+            print(f"[{diagram_name}] {result['reason']}; segment category order normalized.")
+        else:
+            print(f"[{diagram_name}] {result['reason']}; nothing to reflow.")
         return result
 
     dc_cell = cells_by_id.get(args.dc_container_id)
@@ -704,9 +1047,12 @@ def process_diagram(diagram, args):
         if dc_inner_extent > current_width:
             dc_geom.set("width", format_number(dc_inner_extent))
 
+    geometry_changed = reflow_segment_category_order(root_cell, cells_by_id, objects_by_id)
+    z_order_changed = normalize_z_order(root_cell)
+
     result["total_items"] = total_items
     result["segments"] = processed_segments
-    result["changed"] = total_items > 0
+    result["changed"] = total_items > 0 or geometry_changed or z_order_changed
     if not result["changed"] and not result["reason"]:
         result["reason"] = "no services were placed after grouping"
     return result

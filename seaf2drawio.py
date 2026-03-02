@@ -143,6 +143,25 @@ def get_parent_value(pattern, current_parent):
     parent_value = d.find_value_by_key(parent_data, pattern['parent_key'])
     return parent_value if parent_value is not None else ''
 
+
+def apply_pattern_filters(pattern: Dict[str, Any], objects: Any) -> Any:
+    if not isinstance(objects, dict):
+        return objects
+
+    id_regex = pattern.get('id_regex')
+    exclude_id_regex = pattern.get('exclude_id_regex')
+    if not id_regex and not exclude_id_regex:
+        return objects
+
+    filtered = {}
+    for object_id, object_data in objects.items():
+        if id_regex and not re.search(id_regex, object_id):
+            continue
+        if exclude_id_regex and re.search(exclude_id_regex, object_id):
+            continue
+        filtered[object_id] = object_data
+    return filtered
+
 def add_pages(pattern):
 
     if pattern.get('ext_page'):
@@ -152,10 +171,11 @@ def add_pages(pattern):
         for key_id in list( page_data.keys() ):
 
             diagram.drawio_diagram_xml = pattern['ext_page']
+            safe_title = saxutils.escape(page_data[key_id]['title'], entities={'"': "&quot;", "'": "&apos;"})
             try:
-                diagram.add_diagram(key_id + '_page', page_data[key_id]['title'])
-                diagram_pages[k].append(page_data[key_id]['title'])
-                diagram_ids.setdefault(page_data[key_id]['title'], set()).add(key_id)
+                diagram.add_diagram(key_id + '_page', safe_title)
+                diagram_pages[k].append(safe_title)
+                diagram_ids.setdefault(safe_title, set()).add(key_id)
             except ET.ParseError:
                 print(f'WARNING ! Не используйте XML зарезервированные символы <>&\'\" в поле title для объектов dc/office')
                 pass
@@ -167,109 +187,110 @@ def add_pages(pattern):
 def add_object(pattern: Dict[str, Any], data: Dict[str, Any], key_id: str) -> None:
 
     pattern_count, current_parent = 0, ''
-    for xml_pattern in d.get_xml_pattern(pattern['xml'], key_id):
+    try:
+        for xml_pattern in d.get_xml_pattern(pattern['xml'], key_id):
 
-        diagram.drawio_node_object_xml = xml_pattern
+            diagram.drawio_node_object_xml = xml_pattern
 
-        # Если у элемента есть родитель, получаем ID родителя и проверяем связан ли родитель с текущей диаграммой (страницей)
-        # добавляем в справочник ID элемента
-        if pattern.get('parent_id') and d.find_common_element(d.find_key_value(data, pattern['parent_id']),
-                                                     list(diagram_ids[page_name])) and pattern_count == 0:
+            # Если у элемента есть родитель, получаем ID родителя и проверяем связан ли родитель с текущей диаграммой (страницей)
+            # добавляем в справочник ID элемента
+            if pattern.get('parent_id') and d.find_common_element(d.find_key_value(data, pattern['parent_id']),
+                                                         list(diagram_ids[page_name])) and pattern_count == 0:
 
-            diagram_ids.setdefault(page_name, set()).add(key_id)
-            current_parent = d.find_common_element(d.find_key_value(data, pattern['parent_id']),list(diagram_ids[page_name]))
+                diagram_ids.setdefault(page_name, set()).add(key_id)
+                current_parent = d.find_common_element(d.find_key_value(data, pattern['parent_id']),list(diagram_ids[page_name]))
 
-            # If parent_id field is a list (e.g., WAN.segment), normalize it to the selected current_parent
+                # If parent_id field is a list (e.g., WAN.segment), normalize it to the selected current_parent
+                try:
+                    if isinstance(data.get(pattern['parent_id']), list):
+                        data['parent_tmp'] = data.get(pattern['parent_id'])
+                        data[pattern['parent_id']] = current_parent
+                except Exception:
+                    pass
+
+                parent_value = get_parent_value(pattern, current_parent)
+
+                if current_parent != pattern['last_parent'] and pattern['parent_id'] != 'network_connection':
+                    # Для паттернов с parent_key (например, ISP->zone) один и тот же контейнер
+                    # может использоваться при разных parent_id. Сохраняем/восстанавливаем позицию
+                    # отдельно для каждого фактического контейнера.
+                    if not pattern.get('global_positioning'):
+                        pos_map = pattern.setdefault('_position_by_parent_type', {})
+                        if parent_value in pos_map:
+                            saved = pos_map[parent_value]
+                            pattern['x'] = saved.get('x', pattern['x'])
+                            pattern['y'] = saved.get('y', pattern['y'])
+                            pattern['count'] = saved.get('count', pattern.get('count', 0))
+                        else:
+                            default_pattern['parent'] = parent_value
+                            pattern.update(default_pattern)
+
+                    pattern['last_parent'] = current_parent
+
+                pattern['parent'] = parent_value
+                pattern['last_parent_type'] = parent_value
+
+
             try:
-                if isinstance(data.get(pattern['parent_id']), list):
-                    data['parent_tmp'] = data.get(pattern['parent_id'])
-                    data[pattern['parent_id']] = current_parent
-            except Exception:
-                pass
+                # Escape data for XML, including quotes for attributes
+                safe_data = {k: saxutils.escape(str(v), entities={'"': "&quot;", "'": "&apos;"}) if v is not None else '' for k, v in data.items()}
+                
+                diagram.drawio_node_object_xml = diagram.drawio_node_object_xml.format_map(
+                    safe_data | {'Group_ID': f'{key_id}_0', 'parent_id' : current_parent, 'parent_type' : pattern.get('parent', ''),
+                            'description' : saxutils.escape(str(data.get('description','') or ''), entities={'"': "&quot;", "'": "&apos;"}) })
+                data['OID'] = key_id
+                
+                # Pre-escape title for N2G add_node which inserts it into XML
+                safe_title = saxutils.escape(str(data.get('title', '')), entities={'"': "&quot;", "'": "&apos;"})
 
-            parent_value = get_parent_value(pattern, current_parent)
+            except KeyError as e:
 
-            if current_parent != pattern['last_parent'] and pattern['parent_id'] != 'network_connection':
-                # Для паттернов с parent_key (например, ISP->zone) один и тот же контейнер
-                # может использоваться при разных parent_id. Сохраняем/восстанавливаем позицию
-                # отдельно для каждого фактического контейнера.
-                if not pattern.get('global_positioning'):
+                #print("Error: Can't add object: {id} to page: {page}. Key: {key} out of dictionary. Data: {data}"
+                #      .format(key=str(e), id=i, page=page_name, data=data))
+                return
+
+
+            if key_id in diagram_ids[page_name]:
+
+                #if pattern.get('parent_id') == 'dc':
+                #    print(f'==={i} == {current_parent} === {key_id}_{pattern_count}')
+                """
+                    Заменяет ключ 'id' на 'sid' в словаре, если он существует.
+                """
+                if 'id' in data:
+                    data['sid'] = data.pop('id')
+
+                data['schema'] = pattern['schema']
+
+                # Удаляем техническое поле если оно присутствует в данных
+                if 'parent_tmp' in data:
+                    del data['parent_tmp']
+
+                # Если не содержит конструкции <object></object>, то изменять ID добавляя порядковый номер
+
+                diagram.add_node(
+                    id=f"{key_id}_{pattern_count}" if not d.contains_object_tag(xml_pattern, 'object') else key_id,
+                    label=safe_title,
+                    x_pos=pattern['x'],
+                    y_pos=pattern['y'],
+                    width=pattern['w'],
+                    height=pattern['h'],
+                    data=data if d.contains_object_tag(xml_pattern, 'object') else {},
+                    url=pattern.get('ext_page') and data['title']
+                )
+                diagram_ids.setdefault(page_name, set()).add(key_id)  # Добавляет ID root элементов
+
+                if pattern_count == 0:  # Change position of element
+                    position_offset(object_pattern)
+                if pattern.get('parent'):
                     pos_map = pattern.setdefault('_position_by_parent_type', {})
-                    if parent_value in pos_map:
-                        saved = pos_map[parent_value]
-                        pattern['x'] = saved.get('x', pattern['x'])
-                        pattern['y'] = saved.get('y', pattern['y'])
-                        pattern['count'] = saved.get('count', pattern.get('count', 0))
-                    else:
-                        default_pattern['parent'] = parent_value
-                        pattern.update(default_pattern)
-
-                pattern['last_parent'] = current_parent
-
-            pattern['parent'] = parent_value
-            pattern['last_parent_type'] = parent_value
-
-
-        try:
-            # Escape data for XML, including quotes for attributes
-            safe_data = {k: saxutils.escape(str(v), entities={'"': "&quot;", "'": "&apos;"}) if v is not None else '' for k, v in data.items()}
-            
-            diagram.drawio_node_object_xml = diagram.drawio_node_object_xml.format_map(
-                safe_data | {'Group_ID': f'{key_id}_0', 'parent_id' : current_parent, 'parent_type' : pattern.get('parent', ''),
-                        'description' : saxutils.escape(str(data.get('description','') or ''), entities={'"': "&quot;", "'": "&apos;"}) })
-            data['OID'] = key_id
-            
-            # Pre-escape title for N2G add_node which inserts it into XML
-            safe_title = saxutils.escape(str(data.get('title', '')), entities={'"': "&quot;", "'": "&apos;"})
-
-        except KeyError as e:
-
-            #print("Error: Can't add object: {id} to page: {page}. Key: {key} out of dictionary. Data: {data}"
-            #      .format(key=str(e), id=i, page=page_name, data=data))
-            return
-
-
-        if key_id in diagram_ids[page_name]:
-
-            #if pattern.get('parent_id') == 'dc':
-            #    print(f'==={i} == {current_parent} === {key_id}_{pattern_count}')
-            """
-                Заменяет ключ 'id' на 'sid' в словаре, если он существует.
-            """
-            if 'id' in data:
-                data['sid'] = data.pop('id')
-
-            data['schema'] = pattern['schema']
-
-            # Удаляем техническое поле если оно присутствует в данных
-            if 'parent_tmp' in data:
-                del data['parent_tmp']
-
-            # Если не содержит конструкции <object></object>, то изменять ID добавляя порядковый номер
-
-            diagram.add_node(
-                id=f"{key_id}_{pattern_count}" if not d.contains_object_tag(xml_pattern, 'object') else key_id,
-                label=safe_title,
-                x_pos=pattern['x'],
-                y_pos=pattern['y'],
-                width=pattern['w'],
-                height=pattern['h'],
-                data=data if d.contains_object_tag(xml_pattern, 'object') else {},
-                url=pattern.get('ext_page') and data['title']
-            )
-            diagram_ids.setdefault(page_name, set()).add(key_id)  # Добавляет ID root элементов
-
-            if pattern_count == 0:  # Change position of element
-                position_offset(object_pattern)
-            if pattern.get('parent'):
-                pos_map = pattern.setdefault('_position_by_parent_type', {})
-                pos_map[pattern['parent']] = {
-                    'x': pattern['x'],
-                    'y': pattern['y'],
-                    'count': pattern.get('count', 0),
-                }
-            pattern_count += 1
-
+                    pos_map[pattern['parent']] = {
+                        'x': pattern['x'],
+                        'y': pattern['y'],
+                        'count': pattern.get('count', 0),
+                    }
+                pattern_count += 1
+    finally:
         diagram.drawio_node_object_xml = node_xml_default
 
 def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
@@ -284,8 +305,16 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
 
     source_id = 'Unknown'
     source_objects = d.get_object(conf['data_yaml_file'], schema_name, type=type_filter)
+    source_objects = apply_pattern_filters(pattern, source_objects)
 
     if not isinstance(source_objects, dict):
+        return
+
+    if (
+        page_name == 'Main Schema'
+        and schema_name == 'seaf.company.ta.services.networks'
+        and type_filter == 'type:WAN'
+    ):
         return
 
     eligible_links = None
@@ -362,6 +391,8 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
                         elif val is not None:
                             derived_targets.append(val)
                     targets = {pattern['targets']: derived_targets}
+                if pattern['targets'] not in targets or not targets[pattern['targets']]:
+                    continue
                 for target_id in targets[pattern['targets']]:
                     if target_id in diagram_ids[page_name]:  # Объект для связи присутствует на диаграмме
                         if kwargs.get('logical_link'):
@@ -410,25 +441,32 @@ def run_auto_layout_if_enabled(conf: Dict[str, Any]) -> None:
     if not conf.get('auto_layout_grid'):
         return
 
+    segment_script_path = conf.get('auto_layout_segment_script', os.path.join('scripts', 'layout_segments.py'))
     script_path = conf.get('auto_layout_script', os.path.join('scripts', 'layout_tech_services.py'))
-    cmd = [sys.executable, '-X', 'utf8', script_path, '-i', conf['output_file']]
-
-    if conf.get('auto_layout_diagram'):
-        cmd.extend(['--diagram', conf['auto_layout_diagram']])
-    if conf.get('auto_layout_filter'):
-        cmd.extend(['--diagram-filter', conf['auto_layout_filter']])
 
     print("\n> Запускаю автоматическую раскладку по сетке ...")
-    try:
-        completed = subprocess.run(cmd, check=False, capture_output=True, text=True)
-        if completed.stdout:
-            print(completed.stdout.rstrip())
-        if completed.returncode != 0:
-            print(f"WARNING: auto-layout завершился с кодом {completed.returncode}")
-            if completed.stderr:
-                print(completed.stderr.rstrip())
-    except Exception as ex:
-        print(f"WARNING: не удалось запустить auto-layout: {ex}")
+    def run_postprocess(script_to_run: str, label: str) -> None:
+        cmd = [sys.executable, '-X', 'utf8', script_to_run, '-i', conf['output_file']]
+        if conf.get('auto_layout_diagram'):
+            cmd.extend(['--diagram', conf['auto_layout_diagram']])
+        if conf.get('auto_layout_filter'):
+            cmd.extend(['--diagram-filter', conf['auto_layout_filter']])
+        try:
+            completed = subprocess.run(cmd, check=False, capture_output=True, text=True)
+            if completed.stdout:
+                print(completed.stdout.rstrip())
+            if completed.returncode != 0:
+                print(f"WARNING: {label} завершился с кодом {completed.returncode}")
+                if completed.stderr:
+                    print(completed.stderr.rstrip())
+        except Exception as ex:
+            print(f"WARNING: не удалось запустить {label}: {ex}")
+
+    run_postprocess(segment_script_path, 'segment-layout')
+    run_postprocess(script_path, 'auto-layout')
+    run_postprocess(segment_script_path, 'segment-layout-final')
+    run_postprocess(script_path, 'auto-layout-final')
+    run_postprocess(segment_script_path, 'segment-layout-post')
 
 
 if __name__ == '__main__':
@@ -460,6 +498,7 @@ if __name__ == '__main__':
                 try:
                     object_data = d.get_object(conf['data_yaml_file'], object_pattern['schema'], type=object_pattern.get('type'),
                         sort=object_pattern['parent_id'] if object_pattern.get('parent_id') else None)
+                    object_data = apply_pattern_filters(object_pattern, object_data)
 
                     add_pages(object_pattern)
                     object_pattern.update({
