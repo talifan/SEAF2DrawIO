@@ -276,6 +276,7 @@ wan_edge:
   parent_id: 'segment'
   type: "type:WAN"
   id_regex: '(^|\.)network\.wan\.(?!isp\.|sp\.).*(internet_edge|ext_wan_edge|ext_van_edge|int_wan_edge|int_van_edge)$'
+  exclude_id_regex: '(^|\.)network\.wan\.(?:.*\.)?(isp|sp)\.'
   deep: 4
   offset: 70
   x: 20
@@ -303,7 +304,7 @@ isp:
   schema: 'seaf.company.ta.services.networks'
   parent_id: 'segment'
   type: "type:WAN"
-  id_regex: '(^|\.)network\.wan\.(isp|sp)\.'
+  id_regex: '(^|\.)network\.wan\.(?:.*\.)?(isp|sp)\.'
   deep: 15
   offset: 30
   x: 510

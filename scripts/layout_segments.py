@@ -193,6 +193,22 @@ def find_first_segment(segments, zone_name):
     return sorted(matches, key=lambda item: (float_attr(item["geom"], "x"), float_attr(item["geom"], "y"), item["id"]))[0]
 
 
+def find_management_int_net(segments, primary_int_net_id):
+    matches = []
+    for segment in segments.values():
+        if segment["zone"] != "INT-NET":
+            continue
+        if segment["id"] == primary_int_net_id:
+            continue
+        title = (segment["object"].get("title") or "").lower()
+        seg_id = segment["id"].lower()
+        if "management" in title or "management" in seg_id:
+            matches.append(segment)
+    if not matches:
+        return None
+    return sorted(matches, key=lambda item: (float_attr(item["geom"], "x"), float_attr(item["geom"], "y"), item["id"]))[0]
+
+
 def normalize_page_segments(root_cell):
     segments = collect_segments(root_cell)
     if not segments:
@@ -204,6 +220,7 @@ def normalize_page_segments(root_cell):
     int_wan = find_first_segment(segments, "INT-WAN-EDGE")
     int_net = find_first_segment(segments, "INT-NET")
     int_security = find_first_segment(segments, "INT-SECURITY-NET")
+    management_int_net = find_management_int_net(segments, int_net["id"] if int_net is not None else "")
 
     changed = False
     bounds = {}
@@ -293,10 +310,21 @@ def normalize_page_segments(root_cell):
             h=max(bounds[int_security["id"]]["h"], float_attr(int_net["geom"], "height")),
         )
 
+    if management_int_net:
+        neighbor = int_security if int_security is not None else int_net
+        if neighbor is not None:
+            changed |= update_segment_geometry(
+                management_int_net,
+                x=float_attr(neighbor["geom"], "x") + float_attr(neighbor["geom"], "width"),
+                y=float_attr(neighbor["geom"], "y"),
+                w=bounds[management_int_net["id"]]["w"],
+                h=float_attr(neighbor["geom"], "height"),
+            )
+
     # Update standalone segments not covered by dependency logic.
     anchored_ids = {
         seg["id"]
-        for seg in (inet, ext, dmz, int_wan, int_net, int_security)
+        for seg in (inet, ext, dmz, int_wan, int_net, int_security, management_int_net)
         if seg is not None
     }
 
