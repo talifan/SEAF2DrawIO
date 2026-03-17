@@ -865,6 +865,8 @@ def process_diagram(diagram, args):
         schema = elem.get("schema")
         if schema not in TARGET_SCHEMAS:
             continue
+        if elem.get("internet_external") == "true":
+            continue
         primary_cell = find_primary_cell(elem, cells_by_id)
         if primary_cell is None:
             continue

@@ -27,6 +27,7 @@ expected_data = {}
 pattern_specs = {}
 data_store = None
 link_style_override = ''
+EXTERNAL_INTERNET_NETWORK = '0.0.0.0/0'
 
 # Переменные по умолчанию
 DEFAULT_CONFIG = {
@@ -144,6 +145,62 @@ def get_parent_value(pattern, current_parent):
     return parent_value if parent_value is not None else ''
 
 
+def get_schema_object(schema_name: str, object_id: str) -> Dict[str, Any]:
+    if not object_id:
+        return {}
+    objects = d.get_object(conf['data_yaml_file'], schema_name)
+    if not isinstance(objects, dict):
+        return {}
+    obj = objects.get(object_id)
+    return obj if isinstance(obj, dict) else {}
+
+
+def resolve_external_internet_segment(parent_id: str) -> str:
+    network_data = get_schema_object(SeafSchema.NETWORK, parent_id)
+    if not network_data:
+        return ''
+    if str(network_data.get('type') or '').upper() != 'LAN':
+        return ''
+    if str(network_data.get('ipnetwork') or '').strip() != EXTERNAL_INTERNET_NETWORK:
+        return ''
+
+    segment_value = network_data.get('segment') or []
+    if isinstance(segment_value, list):
+        segment_id = segment_value[0] if segment_value else ''
+    else:
+        segment_id = str(segment_value or '')
+    if not segment_id:
+        return ''
+
+    segment_data = get_schema_object(SeafSchema.NETWORK_SEGMENT, segment_id)
+    if str(segment_data.get('zone') or '').upper() != 'INTERNET':
+        return ''
+    return segment_id
+
+
+def is_external_internet_network(data: Dict[str, Any], segment_id: str) -> bool:
+    if not segment_id:
+        return False
+    if str(data.get('type') or '').upper() != 'LAN':
+        return False
+    if str(data.get('ipnetwork') or '').strip() != EXTERNAL_INTERNET_NETWORK:
+        return False
+    segment_data = get_schema_object(SeafSchema.NETWORK_SEGMENT, segment_id)
+    return str(segment_data.get('zone') or '').upper() == 'INTERNET'
+
+
+def get_external_internet_geometry(segment_id: str, pattern: Dict[str, Any]) -> tuple[float, float]:
+    anchor_x = -10
+    anchor_y = 60 if '.dc_office.' in segment_id else 140
+    step_y = max(pattern['h'] + 20, 70)
+    counter_key = (page_name, segment_id, 'internet-external')
+    index = layout_counters.get(counter_key, 0)
+    layout_counters[counter_key] = index + 1
+    x_pos = anchor_x - pattern['w'] - 30
+    y_pos = anchor_y + index * step_y
+    return x_pos, y_pos
+
+
 def apply_pattern_filters(pattern: Dict[str, Any], objects: Any) -> Any:
     if not isinstance(objects, dict):
         return objects
@@ -187,6 +244,11 @@ def add_pages(pattern):
 def add_object(pattern: Dict[str, Any], data: Dict[str, Any], key_id: str) -> None:
 
     pattern_count, current_parent = 0, ''
+    render_parent = ''
+    render_x = None
+    render_y = None
+    internet_external = False
+    internet_external_network = False
     try:
         for xml_pattern in d.get_xml_pattern(pattern['xml'], key_id):
 
@@ -208,7 +270,19 @@ def add_object(pattern: Dict[str, Any], data: Dict[str, Any], key_id: str) -> No
                 except Exception:
                     pass
 
-                parent_value = get_parent_value(pattern, current_parent)
+                render_parent = current_parent
+                if pattern.get('parent_id') == 'network_connection':
+                    external_segment_id = resolve_external_internet_segment(current_parent)
+                    if external_segment_id:
+                        render_parent = external_segment_id
+                        render_x, render_y = get_external_internet_geometry(external_segment_id, pattern)
+                        internet_external = True
+                elif pattern.get('parent_id') == 'segment' and is_external_internet_network(data, current_parent):
+                    render_x = default_pattern['x']
+                    render_y = default_pattern['y']
+                    internet_external_network = True
+
+                parent_value = get_parent_value(pattern, render_parent)
 
                 if current_parent != pattern['last_parent'] and pattern['parent_id'] != 'network_connection':
                     # Для паттернов с parent_key (например, ISP->zone) один и тот же контейнер
@@ -236,7 +310,7 @@ def add_object(pattern: Dict[str, Any], data: Dict[str, Any], key_id: str) -> No
                 safe_data = {k: saxutils.escape(str(v), entities={'"': "&quot;", "'": "&apos;"}) if v is not None else '' for k, v in data.items()}
                 
                 diagram.drawio_node_object_xml = diagram.drawio_node_object_xml.format_map(
-                    safe_data | {'Group_ID': f'{key_id}_0', 'parent_id' : current_parent, 'parent_type' : pattern.get('parent', ''),
+                    safe_data | {'Group_ID': f'{key_id}_0', 'parent_id' : render_parent or current_parent, 'parent_type' : pattern.get('parent', ''),
                             'description' : saxutils.escape(str(data.get('description','') or ''), entities={'"': "&quot;", "'": "&apos;"}) })
                 data['OID'] = key_id
                 
@@ -273,12 +347,14 @@ def add_object(pattern: Dict[str, Any], data: Dict[str, Any], key_id: str) -> No
                     node_data = dict(node_data)
                     # Do not let source YAML "label" override the rendered DrawIO label.
                     node_data.pop('label', None)
+                    if internet_external:
+                        node_data['internet_external'] = 'true'
 
                 diagram.add_node(
                     id=f"{key_id}_{pattern_count}" if not d.contains_object_tag(xml_pattern, 'object') else key_id,
                     label=safe_title,
-                    x_pos=pattern['x'],
-                    y_pos=pattern['y'],
+                    x_pos=render_x if render_x is not None else pattern['x'],
+                    y_pos=render_y if render_y is not None else pattern['y'],
                     width=pattern['w'],
                     height=pattern['h'],
                     data=node_data,
@@ -286,7 +362,7 @@ def add_object(pattern: Dict[str, Any], data: Dict[str, Any], key_id: str) -> No
                 )
                 diagram_ids.setdefault(page_name, set()).add(key_id)  # Добавляет ID root элементов
 
-                if pattern_count == 0:  # Change position of element
+                if pattern_count == 0 and not internet_external and not internet_external_network:  # Change position of element
                     position_offset(object_pattern)
                 if pattern.get('parent'):
                     pos_map = pattern.setdefault('_position_by_parent_type', {})
