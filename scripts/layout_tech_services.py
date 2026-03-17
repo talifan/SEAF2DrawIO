@@ -7,6 +7,7 @@ import re
 import sys
 import os
 import xml.etree.ElementTree as ET
+from xml.sax.saxutils import escape
 from collections import Counter, defaultdict
 
 # Adjust path to import lib
@@ -173,6 +174,32 @@ def collect_cells(root):
         elif elem.tag == "mxCell" and elem.get("id"):
             cells[elem.get("id")] = elem
     return cells, objects
+
+
+def render_title_under_stencil(title):
+    safe_title = escape(str(title or ""), entities={'"': "&quot;", "'": "&apos;"})
+    return (
+        '<div style="line-height: 100%; padding-top: 30px;">'
+        f'<font style="font-size: 7px;">{safe_title}</font>'
+        "</div>"
+    )
+
+
+def normalize_service_labels(objects_by_id):
+    changed = False
+    for obj in objects_by_id.values():
+        if obj.get("schema") != SeafSchema.KB:
+            continue
+        if obj.get("technology") != "Потоковый антивирус":
+            continue
+        title = obj.get("title")
+        if not title:
+            continue
+        expected = render_title_under_stencil(title)
+        if obj.get("label") != expected:
+            obj.set("label", expected)
+            changed = True
+    return changed
 
 
 def resolve_base_id(elem, direct_objects):
@@ -827,6 +854,7 @@ def process_diagram(diagram, args):
             root_cell.remove(cell)
 
     cells_by_id, objects_by_id = collect_cells(root_cell)
+    label_changed = normalize_service_labels(objects_by_id)
     net_segment_lookup = build_connection_segment_index(root_cell)
     segment_meta, zone_index = build_segment_zone_index(objects_by_id)
 
@@ -1052,7 +1080,7 @@ def process_diagram(diagram, args):
 
     result["total_items"] = total_items
     result["segments"] = processed_segments
-    result["changed"] = total_items > 0 or geometry_changed or z_order_changed
+    result["changed"] = total_items > 0 or geometry_changed or z_order_changed or label_changed
     if not result["changed"] and not result["reason"]:
         result["reason"] = "no services were placed after grouping"
     return result

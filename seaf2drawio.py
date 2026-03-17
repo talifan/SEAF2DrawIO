@@ -268,6 +268,12 @@ def add_object(pattern: Dict[str, Any], data: Dict[str, Any], key_id: str) -> No
 
                 # Если не содержит конструкции <object></object>, то изменять ID добавляя порядковый номер
 
+                node_data = data if d.contains_object_tag(xml_pattern, 'object') else {}
+                if node_data:
+                    node_data = dict(node_data)
+                    # Do not let source YAML "label" override the rendered DrawIO label.
+                    node_data.pop('label', None)
+
                 diagram.add_node(
                     id=f"{key_id}_{pattern_count}" if not d.contains_object_tag(xml_pattern, 'object') else key_id,
                     label=safe_title,
@@ -275,7 +281,7 @@ def add_object(pattern: Dict[str, Any], data: Dict[str, Any], key_id: str) -> No
                     y_pos=pattern['y'],
                     width=pattern['w'],
                     height=pattern['h'],
-                    data=data if d.contains_object_tag(xml_pattern, 'object') else {},
+                    data=node_data,
                     url=pattern.get('ext_page') and data['title']
                 )
                 diagram_ids.setdefault(page_name, set()).add(key_id)  # Добавляет ID root элементов
