@@ -1,0 +1,110 @@
+[
+  {
+    "id": "Xq3PKyLiy71YuEAiDazH-1607",
+    "value": "",
+    "width": 1814.0,
+    "height": 1503.0,
+    "x": 1385.0,
+    "y": 3187.0,
+    "style": "verticalAlign=bottom;align=left;vsdxID=17491;fillColor=none;gradientColor=none;shape=stencil(nZFLDsIwDERP4y0KyQKxLuUCnCAihliEpEpL+ZyetANS6YJFs7JnXmxpTKZqvW2YtGq7nC58F9d5MjvSWqLnLF2pyNRkqlPKfM7pFh36xhZSq1Fhhz/rgdbK5uNBXgxts9r+PjAYck39sPwBVMF6foYp9HugQeIE/ZqL4D/oQnC2vhRjPAhOQkC6U38eZ5FwClO/AQ==);strokeColor=#000000;labelBackgroundColor=none;rounded=1;html=1;whiteSpace=wrap;strokeWidth=2;"
+  },
+  {
+    "id": "Xq3PKyLiy71YuEAiDazH-66",
+    "value": "",
+    "width": 1824.0121,
+    "height": 1401.9657,
+    "x": 1384.0,
+    "y": 1692.0,
+    "style": "verticalAlign=bottom;align=left;vsdxID=5783;fillColor=none;gradientColor=none;shape=stencil(nZFLDsIwDERP4y0KyQKxLuUCnCAihliEpEpL+ZyetANS6YJFs7JnXmxpTKZqvW2YtGq7nC58F9d5MjvSWqLnLF2pyNRkqlPKfM7pFh36xhZSq1Fhhz/rgdbK5uNBXgxts9r+PjAYck39sPwBVMF6foYp9HugQeIE/ZqL4D/oQnC2vhRjPAhOQkC6U38eZ5FwClO/AQ==);strokeColor=#000000;labelBackgroundColor=none;rounded=1;html=1;whiteSpace=wrap;strokeWidth=2;fontStyle=1"
+  },
+  {
+    "id": "Xq3PKyLiy71YuEAiDazH-728",
+    "value": "",
+    "width": 1216.0,
+    "height": 999.0,
+    "x": 1392.0,
+    "y": 611.0,
+    "style": "verticalAlign=bottom;align=left;vsdxID=12744;fillColor=none;gradientColor=none;shape=stencil(nZFLDsIwDERP4y0KyQKxLuUCnCAihliEpEpL+ZyetANS6YJFs7JnXmxpTKZqvW2YtGq7nC58F9d5MjvSWqLnLF2pyNRkqlPKfM7pFh36xhZSq1Fhhz/rgdbK5uNBXgxts9r+PjAYck39sPwBVMF6foYp9HugQeIE/ZqL4D/oQnC2vhRjPAhOQkC6U38eZ5FwClO/AQ==);strokeColor=#000000;labelBackgroundColor=none;rounded=1;html=1;whiteSpace=wrap;strokeWidth=2;"
+  },
+  {
+    "id": "W75vk56OFxpqgoWiznCy-3",
+    "value": "Внутренняя сеть ВЦОД",
+    "width": 755.904,
+    "height": 1500.0,
+    "x": 2020.0747,
+    "y": 3188.1825999999996,
+    "style": "rounded=0;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=12;fontColor=#000000;fillColor=#FFCE9F;fontStyle=1;verticalAlign=top;strokeColor=none;"
+  },
+  {
+    "id": "eNi-KYMAPV7isPsi_cJF-13",
+    "value": "Внутренняя сеть ЦОД",
+    "width": 750.0,
+    "height": 1400.0,
+    "x": 2020.0,
+    "y": 1692.1226,
+    "style": "rounded=0;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=12;fontColor=#000000;fillColor=#FFCE9F;fontStyle=1;verticalAlign=top;strokeColor=none;"
+  },
+  {
+    "id": "W75vk56OFxpqgoWiznCy-1",
+    "value": "DMZ",
+    "width": 430.0,
+    "height": 1500.0,
+    "x": 1590.0,
+    "y": 3188.18,
+    "style": "rounded=0;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=12;fontColor=#000000;fillColor=#DDD7E6;verticalAlign=top;fontStyle=1;strokeColor=none;"
+  },
+  {
+    "id": "W75vk56OFxpqgoWiznCy-4",
+    "value": "Защищенный сегментданных ВЦОД",
+    "width": 420.47159999999997,
+    "height": 1499.9969999999998,
+    "x": 2775.9787,
+    "y": 3188.1825999999996,
+    "style": "rounded=0;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=12;fontColor=#000000;fillColor=#B7DEE8;fontStyle=1;verticalAlign=top;strokeColor=none;"
+  },
+  {
+    "id": "eNi-KYMAPV7isPsi_cJF-14",
+    "value": "Защищенный сегментданных",
+    "width": 436.21959999999996,
+    "height": 1400.0,
+    "x": 2770.0,
+    "y": 1692.1226,
+    "style": "rounded=0;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=12;fontColor=#000000;fillColor=#B7DEE8;fontStyle=1;verticalAlign=top;strokeColor=none;"
+  },
+  {
+    "id": "Xq3PKyLiy71YuEAiDazH-5364",
+    "value": "Внутренняя сеть офиса (ЛВС)",
+    "width": 587.0,
+    "height": 999.0,
+    "x": 2020.0,
+    "y": 611.0,
+    "style": "rounded=1;whiteSpace=wrap;html=1;labelBackgroundColor=none;labelBorderColor=none;sketch=0;fontSize=12;fontColor=#000000;strokeColor=default;strokeWidth=0;fillColor=#FFCE9F;gradientColor=none;arcSize=1;imageWidth=24;fontStyle=1;verticalAlign=top;"
+  },
+  {
+    "id": "eNi-KYMAPV7isPsi_cJF-12",
+    "value": "DMZ",
+    "width": 440.08,
+    "height": 1238.1865,
+    "x": 1579.92,
+    "y": 1692.1226,
+    "style": "rounded=0;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=12;fontColor=#000000;fillColor=#DDD7E6;verticalAlign=top;fontStyle=1;strokeColor=none;"
+  },
+  {
+    "id": "Xq3PKyLiy71YuEAiDazH-5361",
+    "value": "УС уровня доступа",
+    "width": 440.0,
+    "height": 796.0613999999999,
+    "x": 1580.0,
+    "y": 611.8098,
+    "style": "rounded=0;whiteSpace=wrap;html=1;labelBackgroundColor=none;sketch=0;fontSize=12;fontColor=#000000;strokeColor=default;strokeWidth=0;fillColor=#DDD7E6;gradientColor=none;verticalAlign=top;fontStyle=1"
+  },
+  {
+    "id": "Xq3PKyLiy71YuEAiDazH-5101",
+    "value": "",
+    "width": 827.0,
+    "height": 352.0,
+    "x": 140.0,
+    "y": 4338.0,
+    "style": "vsdxID=47450;fillColor=none;gradientColor=none;shape=stencil(vVRLkoMgED0NSymEGOM6k7lATkCNRKlhxEImMTn9YJqkAsqsUrKC7tef96ppxPZDy3uBKBms0d/iImvbIvaBKJVdK4y07obYAbH9SRvRGP3b1fDuuUNScreIGmLyCU0JN19HeRNgK3EVHsBAkh99noqPPpyA7/p4wvsTsEp2L9jqbVjX7cTj2QMmvkXj8ZThcgOmMczwyFhu8cYHjRkf5ZAZbbmVugO/RytuGpG5etlJ8SZwDRch+pl5kU1c3LVX5GlCFd4VMz75NuATCUTWorJYN0H6HchYmYrOlGEsUCYl9QripEYsObZzMkUZje3iP1hlZv/7ge5y3yawZ6RSsIxe/fH2cSbYXOzwBw==);strokeColor=#000000;labelBackgroundColor=none;rounded=1;html=1;whiteSpace=wrap;"
+  }
+]
