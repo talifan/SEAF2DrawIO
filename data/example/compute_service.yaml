@@ -411,7 +411,7 @@ seaf.company.ta.services.compute_services:
     stand:
     - jupiter.stand.prod
     app_components:
-    - jupiter.1c.db
+    - jupiter.app_system.1c_erp
     high_availability:
       type: Да
       capacity_reservation_type: Active
@@ -477,7 +477,7 @@ seaf.company.ta.services.compute_services:
       capacity_management: Частичное
   jupiter.compute_service.1c:
     title: Кластер приложений 1С
-    description: flix.cluster.wildfly
+    description: jupiter.cluster.wildfly
     availabilityzone:
     - jupiter.dc_az.moscow
     location:
@@ -490,7 +490,7 @@ seaf.company.ta.services.compute_services:
     stand:
     - jupiter.stand.prod
     app_components:
-    - jupiter.1c
+    - jupiter.app_system.1c_erp
     external_id: cluster.1c
     high_availability:
       type: Да
@@ -516,4 +516,71 @@ seaf.company.ta.services.compute_services:
       type: Да
       capacity_reservation_type: Active
       capacity_management: Частичное
-
+  jupiter.compute_service.redis_cache:
+    title: Redis Cache Cluster
+    description: Распределенный кэш для сессий и метаданных
+    service_type: Распределенный кэш
+    availabilityzone:
+    - jupiter.dc_az.moscow
+    network_connection:
+    - jupiter.network.lan.dc01.int.prod
+    - jupiter.network.lan.dc02.int.prod
+    stand:
+    - jupiter.stand.prod
+    high_availability:
+      type: Да
+      capacity_reservation_type: Active
+      capacity_management: Полное
+    app_components:
+      - jupiter.app_system.aihub
+      - jupiter.app_system.mp_favorite_client
+  jupiter.compute_service.kafka_bus:
+    title: Kafka Message Bus
+    description: Центральная шина событий
+    service_type: Интеграционная шина  (MQ, ETL, API)
+    availabilityzone:
+    - jupiter.dc_az.moscow
+    network_connection:
+    - jupiter.network.lan.dc01.int.prod
+    - jupiter.network.lan.dc02.int.prod
+    stand:
+    - jupiter.stand.prod
+    high_availability:
+      type: Да
+      capacity_reservation_type: Active
+      capacity_management: Полное
+    app_components:
+      - jupiter.app_system.aihub
+      - jupiter.app_system.monitoring_platform
+  jupiter.compute_service.guacamole:
+    title: Guacamole Gateway
+    description: Шлюз удаленного доступа через браузер
+    service_type: Инфраструктура удаленного доступа
+    availabilityzone:
+    - jupiter.dc_az.moscow
+    network_connection:
+    - jupiter.network.lan.dc01.dmz.vpn
+    stand:
+    - jupiter.stand.prod
+    high_availability:
+      type: Да
+      capacity_reservation_type: StandBy
+      capacity_management: Частичное
+    app_components:
+      - jupiter.app_system.monitoring_platform
+  jupiter.compute_service.db_standby:
+    title: Резервная БД (StandBy)
+    description: Холодный резерв для критических данных
+    service_type: СУБД
+    availabilityzone:
+    - jupiter.dc_az.moscow
+    network_connection:
+    - jupiter.network.lan.dc02.int.prod
+    stand:
+    - jupiter.stand.prod
+    high_availability:
+      type: Да
+      capacity_reservation_type: StandBy
+      capacity_management: Полное
+    app_components:
+      - jupiter.sys_component.efs_db

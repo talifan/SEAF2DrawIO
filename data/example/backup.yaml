@@ -22,7 +22,7 @@ seaf.company.ta.services.backups:
     - jupiter.app_system.tms
     - jupiter.app_system.mp_favorite_client
     path: /mnt/backup
-    replication: false
+    replication: true
     stand:
     - jupiter.stand.prod
     title: Cyberbackup
@@ -33,9 +33,15 @@ seaf.company.ta.services.backups:
     - jupiter.server_virtual.mail02
     - jupiter.server_virtual.wildfly01
     - jupiter.server_virtual.wildfly02
+    - jupiter.monitoring.elk
+    - jupiter.monitoring.zabbix
+    - jupiter.monitoring.jaeger
     - jupiter.k8s.01
     - jupiter.k8s.02
     - jupiter.k8s.llm.01
+    - jupiter.cluster_virtualization.esx.cloudru
+    - jupiter.cluster_virtualization.proxmox.vk
+    - jupiter.cluster_virtualization.vmware.sber
     - jupiter.sw_storage.01
     - jupiter.kb.audit.siem
     - jupiter.kb.idm.corp

@@ -9,7 +9,9 @@ seaf.company.ta.services.k8s:
     - jupiter.dc_az.moscow
     - jupiter.dc_az.moscow_dr
     cluster_autoscaler: true
-    cni: Calico
+    cni:
+      product: Calico
+      network_mode: overlay
     description: K8s кластер в az.moscow
     external_id: k8s.01
     is_own: true
@@ -39,7 +41,9 @@ seaf.company.ta.services.k8s:
     - jupiter.dc_az.moscow
     - jupiter.dc_az.moscow_dr
     cluster_autoscaler: true
-    cni: Calico
+    cni:
+      product: Calico
+      network_mode: overlay
     description: K8s кластер в az.moscow расширенный для ДЗО
     external_id: k8s.02
     is_own: false
@@ -76,14 +80,14 @@ seaf.company.ta.services.k8s:
     is_own: true
     softwares:
     - jupiter.software.k8s_1_29
-    cni: Calico
+    cni:
+      product: Calico
+      network_mode: overlay
     service_mesh: Istio
     cluster_autoscaler: false
     network_connection:
     - jupiter.network.lan.dc01.int.prod
     - jupiter.network.lan.dc02.int.prod
-    - jupiter.network.lan.dc01.int.sec.prod
-    - jupiter.network.lan.dc02.int.sec.prod
     management_networks:
     - jupiter.network.lan.dc01.int.it.services
     - jupiter.network.lan.dc02.int.it.services

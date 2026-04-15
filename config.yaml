@@ -11,7 +11,7 @@ seaf2drawio:
   auto_layout_grid: true
   auto_layout_script: scripts/layout_tech_services.py
   auto_layout_diagram: all
-  # auto_layout_filter: DC,ЦОД,Office,Офис,Головной
+# auto_layout_filter: DC,ЦОД,Office,Офис,Головной
 #  link_style: straight  # опционально: устанавливает прямые связи вместо угловых
 
 drawio2seaf:

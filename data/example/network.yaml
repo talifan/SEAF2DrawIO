@@ -96,7 +96,7 @@ seaf.company.ta.services.networks:
     ipnetwork: 10.10.27.0/24
     vlan: 27
     segment:
-    - jupiter.network_segment.dc.management
+    - jupiter.network_segment.dc.int_net
     location:
     - jupiter.dc.moscow_dc01
   jupiter.network.lan.dc01.int.prod:
@@ -284,7 +284,7 @@ seaf.company.ta.services.networks:
     ipnetwork: 10.20.27.0/24
     vlan: 127
     segment:
-    - jupiter.network_segment.dc02.management
+    - jupiter.network_segment.dc02.int_net
     location:
     - jupiter.dc.moscow_dc02
   jupiter.network.lan.dc02.int.prod:
@@ -584,3 +584,24 @@ seaf.company.ta.services.networks:
     - jupiter.network_segment.transport
     location:
     - jupiter.dc_office.hq
+  jupiter.network.wan.v6:
+    title: IPv6 WAN Link
+    type: WAN
+    wan_ip: "2001:db8:ac10:fe01::/64"
+    provider: Ростелеком
+    ip_version: v6
+    location:
+      - jupiter.dc.moscow_dc01
+    segment:
+      - jupiter.network_segment.dc.internet
+  jupiter.network.lan.wifi_office:
+    title: Корпоративный Wi-Fi
+    type: LAN
+    lan_type: Беспроводная
+    ip_version: v4
+    ipnetwork: 10.50.10.0/24
+    vlan: 500
+    location:
+      - jupiter.dc_office.hq
+    segment:
+      - jupiter.network_segment.office.access

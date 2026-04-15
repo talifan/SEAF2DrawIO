@@ -23,10 +23,6 @@ seaf.company.ta.services.network_segments:
     title: INT WAN-EDGE
     location: jupiter.dc.moscow_dc01
     zone: INT-WAN-EDGE
-  jupiter.network_segment.dc.management:
-    title: Management INT-NET
-    location: jupiter.dc.moscow_dc01
-    zone: INT-NET
   jupiter.network_segment.dc.internet:
     title: Internet
     location: jupiter.dc.moscow_dc01
@@ -59,10 +55,6 @@ seaf.company.ta.services.network_segments:
     title: INT WAN-EDGE DC02
     location: jupiter.dc.moscow_dc02
     zone: INT-WAN-EDGE
-  jupiter.network_segment.dc02.management:
-    title: Management INT-NET DC02
-    location: jupiter.dc.moscow_dc02
-    zone: INT-NET
   jupiter.network_segment.dc02.internet:
     title: Internet DC02
     location: jupiter.dc.moscow_dc02
