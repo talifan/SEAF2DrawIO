@@ -241,7 +241,7 @@ wan_edge_internet_strip:
   schema: 'seaf.company.ta.services.networks'
   parent_id: 'segment'
   type: "type:WAN"
-  id_regex: '(^|\.)network\.wan\..*internet_edge$'
+  id_regex: '^$'
   deep: 2
   offset: 110
   x: 670
@@ -260,7 +260,7 @@ wan_edge_transport_strip:
   schema: 'seaf.company.ta.services.networks'
   parent_id: 'segment'
   type: "type:WAN"
-  id_regex: '(^|\.)network\.wan\..*(ext_wan_edge|ext_van_edge|int_wan_edge|int_van_edge)$'
+  id_regex: '^$'
   deep: 4
   offset: 110
   x: 670
@@ -279,8 +279,8 @@ wan_edge:
   schema: 'seaf.company.ta.services.networks'
   parent_id: 'segment'
   type: "type:WAN"
-  id_regex: '(^|\.)network\.wan\.(?!isp\.|sp\.).*(internet_edge|ext_wan_edge|ext_van_edge|int_wan_edge|int_van_edge)$'
-  exclude_id_regex: '(^|\.)network\.wan\.(?:.*\.)?(isp|sp)\.'
+  exclude_fields:
+    - provider
   deep: 4
   offset: 100
   x: 20
@@ -308,7 +308,8 @@ isp:
   schema: 'seaf.company.ta.services.networks'
   parent_id: 'segment'
   type: "type:WAN"
-  id_regex: '(^|\.)network\.wan\.(?:.*\.)?(isp|sp)\.'
+  require_fields:
+    - provider
   deep: 15
   offset: 30
   x: 670
@@ -417,6 +418,11 @@ router:
   schema: 'seaf.company.ta.components.networks'
   parent_id: 'segment'
   type: "type:Маршрутизатор (роутер)"
+  exclude_any_field_regex:
+    title: '(?i)\b(vpn|nat)\b'
+    description: '(?i)\b(vpn|nat)\b'
+    purpose: '(?i)\b(vpn|nat)\b'
+    model: '(?i)\b(vpn|nat)\b'
   deep: 7
   offset: 30
   x: 20
@@ -453,6 +459,11 @@ firewall:
   schema: 'seaf.company.ta.components.networks'
   parent_id: 'segment'
   type: "type:Межсетевой экран (файрвол)"
+  exclude_any_field_regex:
+    title: '(?i)(fpsu|фпсу|крипто|vpn)'
+    description: '(?i)(fpsu|фпсу|крипто|шифр|vpn)'
+    purpose: '(?i)(fpsu|фпсу|крипто|шифр|vpn)'
+    model: '(?i)(fpsu|фпсу|крипто|vpn)'
   deep: 9
   offset: 30
   x: 130
@@ -470,7 +481,12 @@ fpsu:
     </object>
   schema: 'seaf.company.ta.components.networks'
   parent_id: 'segment'
-  type: "type:Криптошлюз"
+  type: "type:Межсетевой экран (файрвол)"
+  any_field_regex:
+    title: '(?i)(fpsu|фпсу|крипто|vpn)'
+    description: '(?i)(fpsu|фпсу|крипто|шифр|vpn)'
+    purpose: '(?i)(fpsu|фпсу|крипто|шифр|vpn)'
+    model: '(?i)(fpsu|фпсу|крипто|vpn)'
   deep: 7
   offset: 30
   x: 30
@@ -488,7 +504,7 @@ switch:
     </object>
   schema: 'seaf.company.ta.components.networks'
   parent_id: 'segment'
-  type: "type:Коммутатор"
+  type: "type:Коммутатор (свитч)"
   deep: 7
   offset: 30
   x: 210
@@ -506,7 +522,12 @@ vpn:
     </object>
   schema: 'seaf.company.ta.components.networks'
   parent_id: 'segment'
-  type: "type:VPN"
+  type: "type:Маршрутизатор (роутер)"
+  any_field_regex:
+    title: '(?i)\bvpn\b'
+    description: '(?i)\bvpn\b'
+    purpose: '(?i)\bvpn\b'
+    model: '(?i)\bvpn\b'
   deep: 7
   offset: 30
   x: 20
@@ -524,7 +545,12 @@ nat:
     </object>
   schema: 'seaf.company.ta.components.networks'
   parent_id: 'segment'
-  type: "type:NAT"
+  type: "type:Маршрутизатор (роутер)"
+  any_field_regex:
+    title: '(?i)\bnat\b'
+    description: '(?i)\bnat\b'
+    purpose: '(?i)\bnat\b'
+    model: '(?i)\bnat\b'
   deep: 7
   offset: 30
   x: 20
@@ -560,7 +586,7 @@ waf:
         <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
       </mxCell>
     </object>
-  schema: 'seaf.company.ta.services.kb'
+  schema: 'seaf.company.ta.services.kbs'
   parent_id: 'network_connection'
   type: 'technology:Защита веб-приложений WAF'
   deep: 9
@@ -578,44 +604,14 @@ ddos:
            <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
       </mxCell>
     </object>
-  schema: 'seaf.company.ta.services.kb'
+  schema: 'seaf.company.ta.services.kbs'
   parent_id: 'network_connection'
-  type: 'technology:Защита от атака типа "Отказ в обслуживании"'
+  type: 'technology:Защита от атак типа "Отказ от обслуживания"'
   deep: 3
   offset: 30
   x: 100
   y: 500
   w: 45
-  h: 40
-  algo: 'Y+'
-
-kb_services_aaa:
-  xml : >
-    <mxCell id="{{id}}" value="" style="group" vertex="1" connectable="0" parent="101">
-      <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
-    </mxCell>
-    <object label="&lt;div style=&quot;line-height: 100%; padding-top: 30px;&quot;&gt;&lt;font style=&quot;font-size: 7px;&quot;&gt;{{label}}&lt;/font&gt;&lt;/div&gt;" id="{{id}}">
-      <mxCell style="whiteSpace=wrap;html=1;aspect=fixed;pointerEvents=0;align=center;verticalAlign=top;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=light-dark(#C4D6A0,#EDEDED);gradientColor=none;container=0;" vertex="1" parent="{Group_ID}">
-        <mxGeometry width="40" height="40" as="geometry" />
-      </mxCell>
-    </object>
-    <mxCell id="{{id}}" style="vsdxID=14544;fillColor=#789440;gradientColor=none;shape=stencil(nZBLDoAgDERP0z3SIyjew0SURgSD+Lu9kMZoXLhwN9O+tukAlrNpJg1SzDH4QW/URgNYgZTkjA4UkwJUgGXng+6DX1zLfmoymdXo17xh5zmRJ6Q42BWCfc2oJfdAr+Yv+AP9Cb7OJ3H/2JG1HNGz/84klThPVCc=);strokeColor=#000000;labelBackgroundColor=none;rounded=0;html=1;whiteSpace=wrap;container=0;" vertex="1" parent="{Group_ID}">
-      <mxGeometry y="10" width="40" height="20" as="geometry" />
-    </mxCell>
-    <mxCell id="{{id}}" style="vsdxID=15074;fillColor=#923931;gradientColor=none;shape=stencil(pVTRcoMgEPwaXpmDU5DHTpr+RyYx1anVDDGN+ftioaOUKDJ9445dbm+POYK7a3W4lITDtdfdR3mvT31F8JVwXrdVqevenAjuCe7OnS7fdXdrTza+HEbkePrsvsYXBssrBBVyZHF42Az8RG8W3NTtDMyQIi6Djzdtn2b2Ujgom2Nh4F74cCGnKoeCKSFNGQaQuUID+nAXCpqLqTa8BFrB02keXGkL/gH2hYQmTHgWadQZoTLfGPB9mA8MgyE8MSIyYf87yABs6IVatoMHXyKdwKiSy4QnkpIJ65I2EGIuSaRyRVLYdDJBFLTIU3pIJkQkbSDEXGLqN7Ox6XRCRmVS0+mEdUkbCOYwbeNz3TR2mc/v/25vk7KbH/ff);strokeColor=#ffffff;spacingTop=-3;spacingBottom=-3;spacingLeft=-3;spacingRight=-3;labelBackgroundColor=none;rounded=0;html=1;whiteSpace=wrap;container=0;" vertex="1" parent="{Group_ID}">
-      <mxGeometry x="12" y="11" width="8.78048780487805" height="18" as="geometry" />
-    </mxCell>
-    <mxCell id="{{id}}" value="" style="outlineConnect=0;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;shape=mxgraph.aws3.network_access_controllist;fillColor=#923931;gradientColor=none;container=0;shadow=0;strokeColor=#923931;" vertex="1" parent="{Group_ID}">
-      <mxGeometry x="20" y="13" width="15" height="15" as="geometry" />
-    </mxCell>
-  schema: 'seaf.company.ta.services.kb'
-  parent_id: 'network_connection'
-  type: 'technology:Механизмы ААА'
-  deep: 10
-  offset: 30
-  x: 615
-  y: 1600
-  w: 40
   h: 40
   algo: 'Y+'
 
@@ -638,7 +634,7 @@ kb_services_ib_tool:
     <mxCell id="{{id}}" value="" style="verticalLabelPosition=bottom;sketch=0;html=1;fillColor=#FFFFFF;strokeColor=none;verticalAlign=top;pointerEvents=1;align=center;shape=mxgraph.cisco_safe.security_icons.siem;" vertex="1" parent="{Group_ID}">
       <mxGeometry x="17.5" y="11" width="22" height="18" as="geometry" />
     </mxCell>
-  schema: 'seaf.company.ta.services.kb'
+  schema: 'seaf.company.ta.services.kbs'
   parent_id: 'network_connection'
   type: 'technology:Инструментальный контроль защищенности'
   deep: 10
@@ -668,7 +664,7 @@ kb_services_antivirus:
     <mxCell id="{{id}}" value="" style="verticalLabelPosition=bottom;sketch=0;html=1;fillColor=#923931;strokeColor=none;verticalAlign=top;pointerEvents=1;align=center;shape=mxgraph.cisco_safe.security_icons.icon1;" vertex="1" parent="{Group_ID}">
       <mxGeometry x="21.78" y="13" width="14" height="14" as="geometry" />
     </mxCell>
-  schema: 'seaf.company.ta.services.kb'
+  schema: 'seaf.company.ta.services.kbs'
   parent_id: 'network_connection'
   type: 'technology:Потоковый антивирус'
   deep: 10
@@ -701,7 +697,7 @@ kb_services_user_access:
     <mxCell id="{{id}}" style="vsdxID=15076;rotation=90;fillColor=#923931;gradientColor=none;shape=stencil(lVbbbsIwDP2avlqJnevjxNh/oAGjGgNUYGN/v7RpaeOFRvAQBfs4PnZspxUtzrvVaVOhOF+a4+fmp15fdhW9Voj1Ybdp6kvYVbSsaLE9NpuP5ng9rOP/06pFtruv43d7wi3aGQcKWysUv1GiFchO8Bbx+/owi1cGPE4N3q9N9CAjwBlwCqXQaEhq1xv3SkVAk19U3jAqpRA9uheQAiM1OdWtukcTR/cCVEBmZCZeMuRGo0EgQaA2Snar8F6lnKwNh97jwZSfSBlpRkgUyCBCmyLrvLLBSUpMpDxYZh7SphT+RGpYYvK5H9wTjLwVy0q4Y+28VdStjBghSJmSUxakY+TSKpwa9UXmwarHZasl3Csvvfgs3IZwDD8faeZ8C86nBsHjDKHgwaSEbNsJTxkgOJyhpMGmlMx8Z/8LQfPOLho8OTo4Ph1N9+4ZLgzQTNG8XnW2M+VoPW0Pz0aNmSvgUN3CGo/Ureg9mzxmUi7DMDJgbKHB8j6HWVAgnI+2V2KBMB9MLZ53HGer5obTQ4fD4M6+AVgIlSbGz6c371MWrhTnosVCMT1ILyvdzEAr1XrYjC/4tt7v4wfAVM9f/CCKXwu0/AM=);strokeColor=#ffffff;spacingTop=-3;spacingBottom=-3;spacingLeft=-3;spacingRight=-3;labelBackgroundColor=none;rounded=0;html=1;whiteSpace=wrap;" vertex="1" parent="{Group_ID}">
       <mxGeometry x="27.31707317073176" y="19" width="4.878048780487805" height="10" as="geometry" />
     </mxCell>
-  schema: 'seaf.company.ta.services.kb'
+  schema: 'seaf.company.ta.services.kbs'
   parent_id: 'network_connection'
   type: 'technology:Управление доступом пользователей'
   deep: 10
@@ -731,7 +727,7 @@ kb_services_app_gateway:
     <mxCell id="{{id}}" value="" style="verticalLabelPosition=bottom;sketch=0;html=1;fillColor=#923931;strokeColor=#ffffff;verticalAlign=top;align=center;points=[];pointerEvents=1;shape=mxgraph.cisco_safe.compositeIcon;bgIcon=threat1;resIcon=mxgraph.cisco_safe.threat.threat_a4;" vertex="1" parent="{Group_ID}">
       <mxGeometry x="19" y="10" width="19" height="19" as="geometry" />
     </mxCell>
-  schema: 'seaf.company.ta.services.kb'
+  schema: 'seaf.company.ta.services.kbs'
   parent_id: 'network_connection'
   type: 'technology:Шлюзы безопасности прикладного уровня'
   deep: 10
@@ -761,7 +757,7 @@ kb_services_proxy:
     <mxCell id="{{id}}" value="" style="verticalLabelPosition=bottom;sketch=0;html=1;fillColor=#FFFFFF;strokeColor=none;verticalAlign=top;pointerEvents=1;align=center;shape=mxgraph.cisco_safe.security_icons.icon11;" vertex="1" parent="{Group_ID}">
       <mxGeometry x="19" y="13" width="14" height="14" as="geometry" />
     </mxCell>
-  schema: 'seaf.company.ta.services.kb'
+  schema: 'seaf.company.ta.services.kbs'
   parent_id: 'network_connection'
   type: 'technology:Контентная фильтрация и разграничение доступа в Интернет'
   deep: 10
@@ -791,7 +787,7 @@ kb_services_audit:
     <mxCell id="{{id}}" value="" style="verticalLabelPosition=bottom;sketch=0;html=1;fillColor=#FFFFFF;strokeColor=none;verticalAlign=top;pointerEvents=1;align=center;shape=mxgraph.cisco_safe.security_icons.nba;" vertex="1" parent="{Group_ID}">
       <mxGeometry x="15" y="14" width="20" height="15" as="geometry" />
     </mxCell>
-  schema: 'seaf.company.ta.services.kb'
+  schema: 'seaf.company.ta.services.kbs'
   parent_id: 'network_connection'
   type: 'technology:Аудит событий КБ'
   deep: 10
@@ -821,7 +817,7 @@ kb_services_sand_box:
     <mxCell id="{{id}}" value="" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#FFFFFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.organizations_account;" vertex="1" parent="{Group_ID}">
       <mxGeometry x="21" y="11.5" width="17" height="17" as="geometry" />
     </mxCell>
-  schema: 'seaf.company.ta.services.kb'
+  schema: 'seaf.company.ta.services.kbs'
   parent_id: 'network_connection'
   type: 'technology:Динамический анализ угроз Sandbox'
   deep: 10
@@ -851,7 +847,7 @@ kb_services_config:
     <mxCell id="{{id}}" value="" style="fontColor=#232F3E;fillColor=none;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.guardduty;" vertex="1" parent="{Group_ID}">
       <mxGeometry x="20" y="10" width="20" height="20" as="geometry" />
     </mxCell>
-  schema: 'seaf.company.ta.services.kb'
+  schema: 'seaf.company.ta.services.kbs'
   parent_id: 'network_connection'
   type: 'technology:Безопасность конфигураций'
   deep: 10
@@ -881,8 +877,10 @@ kb_services:
     <mxCell id="{{id}}" value="" style="verticalLabelPosition=bottom;sketch=0;html=1;fillColor=#FFFFFF;strokeColor=none;verticalAlign=top;pointerEvents=1;align=center;shape=mxgraph.cisco_safe.security_icons.ngfw;" vertex="1" parent="{Group_ID}">
       <mxGeometry x="17.25" y="13.5" width="18" height="13" as="geometry" />
     </mxCell>
-  schema: 'seaf.company.ta.services.kb'
+  schema: 'seaf.company.ta.services.kbs'
   parent_id: 'network_connection'
+  field_regex:
+    technology: '^(Мониторинг действий пользователей|Межсетевое экранирование|Контроль подключений к сети|Сигнатурный анализ режим обнаружения вторжений|Сигнатурный анализ режим предотвращения вторжений|Поведенческий анализ сетевого трафика|Защита от утечек информации|Центр управления сертификатами ИБ|Защита от мошеннических операций|Провайдер идентификации \(IdP\)|Управление учетными записями \(IdM\)|Управление привилегированным доступом|Сервис хранения секретов|Политики Kubernetes|Репозиторий ПО|Реестр контейнеров)$'
   deep: 10
   offset: 30
   x: 1245
@@ -1302,7 +1300,7 @@ ta_services_files_cluster:
     </object>
   schema: 'seaf.company.ta.services.compute_services'
   parent_id: 'network_connection'
-  type: 'service_type:Файловый ресурс (FTP, NFS, SMB, S3 итд)'
+  type: 'service_type:Файловый ресурс (FTP, NFS, SMB, S3 и т.д.)'
   deep: 10
   offset: 30
   x: 2100
@@ -1400,7 +1398,7 @@ ta_services_balance_compute:
      </mxCell>
     schema: 'seaf.company.ta.services.compute_services'
     parent_id: 'network_connection'
-    type: 'service_type:Шлюзы, Балансировщики, Proxy'
+    type: 'service_type:Шлюз, Балансировщик, прокси'
     deep: 10
     offset: 30
     x: 2380
@@ -1433,7 +1431,7 @@ ta_services_balance_cluster:
      </mxCell>
     schema: 'seaf.company.ta.services.compute_services'
     parent_id: 'network_connection'
-    type: 'service_type:Шлюзы, Балансировщики, Proxy'
+    type: 'service_type:Шлюз, Балансировщик, прокси'
     deep: 10
     offset: 30
     x: 2450
@@ -1915,7 +1913,7 @@ network_links_2:
         </mxCell>
     </object>
   style: "endArrow=none;edgeStyle=orthogonalEdgeStyle;rounded=0;curved=0;strokeColor=#0000FF;jumpStyle=arc;"
-  schema: 'seaf.company.ta.services.kb'
+  schema: 'seaf.company.ta.services.kbs'
   targets: 'network_connection'
 
 network_links_3:

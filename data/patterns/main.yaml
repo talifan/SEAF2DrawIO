@@ -220,7 +220,8 @@ isp:
   parent_id: 'segment'
   parent_key: 'zone'
   type: "type:WAN"
-  id_regex: '(^|\.)network\.wan\.(isp|sp)\.'
+  require_fields:
+    - provider
   deep: 15
   offset: 25
   x: 10

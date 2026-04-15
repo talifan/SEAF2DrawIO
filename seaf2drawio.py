@@ -207,14 +207,61 @@ def apply_pattern_filters(pattern: Dict[str, Any], objects: Any) -> Any:
 
     id_regex = pattern.get('id_regex')
     exclude_id_regex = pattern.get('exclude_id_regex')
-    if not id_regex and not exclude_id_regex:
+    require_fields = pattern.get('require_fields') or []
+    exclude_fields = pattern.get('exclude_fields') or []
+    field_regex = pattern.get('field_regex') or {}
+    exclude_field_regex = pattern.get('exclude_field_regex') or {}
+    any_field_regex = pattern.get('any_field_regex') or {}
+    exclude_any_field_regex = pattern.get('exclude_any_field_regex') or {}
+
+    if (
+        not id_regex and not exclude_id_regex and not require_fields and not exclude_fields
+        and not field_regex and not exclude_field_regex
+        and not any_field_regex and not exclude_any_field_regex
+    ):
         return objects
+
+    def iter_field_values(obj: Dict[str, Any], field: str) -> list[str]:
+        value = obj.get(field)
+        if isinstance(value, list):
+            return [str(item) for item in value if item is not None]
+        if value is None:
+            return []
+        return [str(value)]
+
+    def matches_all(obj: Dict[str, Any], rules: Dict[str, str]) -> bool:
+        for field, regex in rules.items():
+            values = iter_field_values(obj, field)
+            if not values or not any(re.search(regex, value) for value in values):
+                return False
+        return True
+
+    def matches_any(obj: Dict[str, Any], rules: Dict[str, str]) -> bool:
+        if not rules:
+            return False
+        for field, regex in rules.items():
+            values = iter_field_values(obj, field)
+            if any(re.search(regex, value) for value in values):
+                return True
+        return False
 
     filtered = {}
     for object_id, object_data in objects.items():
         if id_regex and not re.search(id_regex, object_id):
             continue
         if exclude_id_regex and re.search(exclude_id_regex, object_id):
+            continue
+        if require_fields and any(not object_data.get(field) for field in require_fields):
+            continue
+        if exclude_fields and any(object_data.get(field) for field in exclude_fields):
+            continue
+        if field_regex and not matches_all(object_data, field_regex):
+            continue
+        if exclude_field_regex and matches_all(object_data, exclude_field_regex):
+            continue
+        if any_field_regex and not matches_any(object_data, any_field_regex):
+            continue
+        if exclude_any_field_regex and matches_any(object_data, exclude_any_field_regex):
             continue
         filtered[object_id] = object_data
     return filtered

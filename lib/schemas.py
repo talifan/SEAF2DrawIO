@@ -24,7 +24,7 @@ class SeafSchema(str, Enum):
     MONITORING = "seaf.company.ta.services.monitorings"
     STORAGE = "seaf.company.ta.services.storages"
     HW_STORAGE = "seaf.company.ta.services.hw_storages"
-    KB = "seaf.company.ta.services.kb"
+    KB = "seaf.company.ta.services.kbs"
     
     # End User
     COMPONENT_SERVER = "seaf.company.ta.components.servers"

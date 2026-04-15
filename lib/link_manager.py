@@ -228,17 +228,17 @@ def advanced_analysis(conf, expected_counts, expected_data, pattern_specs, d):
                 )
 
             if not all_match:
-                # Show a small diff preview
+                # Show full diff without truncation
                 for schema in schemas:
                     exp_set = expected_counts.get(schema, set())
                     drw_set = drawn_unique.get(schema, set())
-                    missing = list(exp_set - drw_set)[:5]
-                    extra = list(drw_set - exp_set)[:5]
+                    missing = sorted(exp_set - drw_set)
+                    extra = sorted(drw_set - exp_set)
                     if missing or extra:
                         if missing:
-                            print(f"    missing in diagram ({schema}): {missing}...")
+                            print(f"    missing in diagram ({schema}): {missing}")
                         if extra:
-                            print(f"    extra in diagram ({schema}): {extra}...")
+                            print(f"    extra in diagram ({schema}): {extra}")
 
                 # Detailed diagnostics for missing items
                 all_oids = set()
@@ -273,15 +273,15 @@ def advanced_analysis(conf, expected_counts, expected_data, pattern_specs, d):
                         continue
                     print(f"  {schema}:")
                     tkey, tvals = schema_expected.get(schema, (None, set()))
-                    for mid in missing_ids[:10]:
+                    for mid in sorted(missing_ids):
                         data = expected_data.get(schema, {}).get(mid, {})
                         msg_parts = []
                         if tkey:
                             vals = d.find_key_value(data, tkey)
                             actual = vals[0] if isinstance(vals, list) and vals else None
-                            # Prepare expected list (limited)
+                            # Prepare full expected list for diagnostics
                             ev = sorted(v for v in tvals)
-                            ev_out = ", ".join(ev[:6]) + (" ..." if len(ev) > 6 else "")
+                            ev_out = ", ".join(ev)
                             msg_parts.append(f"{tkey}='{actual}' | expected: {ev_out}")
                         # parent_id hint (first parent spec)
                         pid = None
