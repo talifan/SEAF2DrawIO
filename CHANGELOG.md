@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added optional common location page generation via `common_location_page` and `--common-location-page`.
+- The common page stacks generated office and DC diagrams vertically, deduplicates provider networks from Internet-facing zones, and reconnects copied links to shared provider nodes.
+
 ## 1.8.0
 
 - Migrated generation and reverse conversion flow to `seaf.company.ta.*` naming.

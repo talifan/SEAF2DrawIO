@@ -9,6 +9,12 @@ seaf2drawio:
   output_file: result/Sample_graph.drawio
   verify_generation: true
   auto_layout_grid: true
+  common_location_page: false
+  common_location_page_name: "Общая схема"
+  common_location_page_gap: 120
+  common_location_provider_zones:
+    - INTERNET
+    - INET-EDGE
   auto_layout_script: scripts/layout_tech_services.py
   auto_layout_diagram: all
 # auto_layout_filter: DC,ЦОД,Office,Офис,Головной
