@@ -21,6 +21,7 @@ diagram_pages = {'main': ['Main Schema'], 'office': [], 'dc': []}
 diagram_ids = {'Main Schema': set()}
 conf = {}
 pending_missing_links = set()
+logged_default_topology_links = set()
 layout_counters = {}
 expected_counts = {}
 expected_data = {}
@@ -463,9 +464,61 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
     for source_id, targets in source_objects.items():  # source_id - ID объекта
 
         if kwargs.get('logical_link'):
+            link_oid = source_id
             targets['OID'] = source_id
             source_id = targets['source']
             targets['schema'] = pattern['schema']
+
+            raw_topology = targets.get('topology')
+            topology = str(raw_topology or 'star').lower()
+            if not raw_topology and link_oid not in logged_default_topology_links:
+                print(f"\nINFO: logical_link {link_oid} on page '{page_name}': topology is not set, using star.")
+                logged_default_topology_links.add(link_oid)
+            elif topology not in {'star', 'chain'}:
+                print(
+                    f"\nWARNING: logical_link {link_oid} on page '{page_name}': "
+                    f"unknown topology '{raw_topology}', using star."
+                )
+                topology = 'star'
+            targets['topology'] = topology
+
+            link_targets = targets.get(pattern['targets']) or []
+            if not isinstance(link_targets, list):
+                link_targets = [link_targets]
+            link_targets = [target_id for target_id in link_targets if target_id]
+            if not link_targets:
+                continue
+
+            if topology == 'chain':
+                link_steps = list(zip([source_id] + link_targets[:-1], link_targets))
+            else:
+                link_steps = [(source_id, target_id) for target_id in link_targets]
+
+            for step_index, (step_source_id, target_id) in enumerate(link_steps):
+                try:
+                    style = 'style' + str(targets['direction'])  # Выбор стиля стрелки
+                    style_value = adjust_link_style(pattern[style])
+                    link_id = f"{link_oid}:{topology}:{step_index}:{step_source_id}:{target_id}"
+                    if step_source_id in diagram_ids[page_name] and target_id in diagram_ids[page_name]:
+                        diagram.add_link(
+                            source=step_source_id,
+                            target=target_id,
+                            style=style_value,
+                            data=targets,
+                            link_id=link_id
+                        )
+                    elif step_source_id in diagram_ids[page_name] or target_id in diagram_ids[page_name]:
+                        pending_missing_links.add((page_name, step_source_id, target_id))
+                        print(
+                            f"\nWARNING: logical_link {link_oid} on page '{page_name}': "
+                            f"can't draw {topology} edge {step_source_id} -> {target_id}; endpoint missing."
+                        )
+                except KeyError as e:
+                    print(
+                        f"\nINFO : Не найден параметр {e} для объекта "
+                        f"'{pattern['schema']}/{link_oid}' при добавлении связей на диаграмму '{page_name}'."
+                    )
+            continue
 
         if kwargs.get('network_link'):
             link_data = targets
