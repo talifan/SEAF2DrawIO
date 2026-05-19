@@ -243,11 +243,18 @@ def ensure_tag_layer(tag: str, prefix: str = 'logical') -> str:
     return layer_id
 
 
-def add_link_to_layer(source_id: str, target_id: str, style: str, data: Dict[str, Any], layer_id: str) -> None:
+def add_link_to_layer(
+    source_id: str,
+    target_id: str,
+    style: str,
+    data: Dict[str, Any],
+    layer_id: str,
+    link_id: str = '',
+) -> None:
     previous_xml = diagram.drawio_link_object_xml
     try:
         diagram.drawio_link_object_xml = re.sub(r'parent="[^"]+"', f'parent="{layer_id}"', previous_xml, count=1)
-        semantic_id = data.get('OID') or data.get('id') or f'{source_id}->{target_id}'
+        semantic_id = link_id or data.get('OID') or data.get('id') or f'{source_id}->{target_id}'
         layer_link_id = hashlib.md5(f'{semantic_id}|{source_id}|{target_id}|{layer_id}'.encode('utf-8')).hexdigest()
         diagram.add_link(source=source_id, target=target_id, style=style, data=data, link_id=layer_link_id)
     finally:
@@ -575,13 +582,19 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
                     style_value = adjust_link_style(pattern[style])
                     link_id = f"{link_oid}:{topology}:{step_index}:{step_source_id}:{target_id}"
                     if step_source_id in diagram_ids[page_name] and target_id in diagram_ids[page_name]:
-                        diagram.add_link(
-                            source=step_source_id,
-                            target=target_id,
-                            style=style_value,
-                            data=targets,
-                            link_id=link_id
-                        )
+                        tags = normalize_tag_values(targets.get('tags'))
+                        if tags:
+                            for tag in tags:
+                                layer_id = ensure_tag_layer(tag, prefix='logical')
+                                add_link_to_layer(step_source_id, target_id, style_value, targets, layer_id, link_id=link_id)
+                        else:
+                            diagram.add_link(
+                                source=step_source_id,
+                                target=target_id,
+                                style=style_value,
+                                data=targets,
+                                link_id=link_id
+                            )
                     elif step_source_id in diagram_ids[page_name] or target_id in diagram_ids[page_name]:
                         pending_missing_links.add((page_name, step_source_id, target_id))
                         print(
