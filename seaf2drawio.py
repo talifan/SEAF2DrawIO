@@ -29,6 +29,7 @@ pattern_specs = {}
 data_store = None
 link_style_override = ''
 EXTERNAL_INTERNET_NETWORK = '0.0.0.0/0'
+created_tag_layers = set()
 
 # Переменные по умолчанию
 DEFAULT_CONFIG = {
@@ -212,6 +213,46 @@ def get_external_internet_geometry(segment_id: str, pattern: Dict[str, Any]) -> 
     return x_pos, y_pos
 
 
+def normalize_tag_values(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value if item is not None]
+    return [str(value)]
+
+
+def tag_layer_id(tag: str, prefix: str = 'logical') -> str:
+    normalized = re.sub(r'[^A-Za-z0-9_.-]+', '_', str(tag).strip()).strip('_').lower()
+    if not normalized:
+        normalized = hashlib.md5(str(tag).encode('utf-8')).hexdigest()[:8]
+    return f'layer.{prefix}.{normalized}'
+
+
+def ensure_tag_layer(tag: str, prefix: str = 'logical') -> str:
+    layer_id = tag_layer_id(tag, prefix=prefix)
+    if diagram.current_root.find(f"./mxCell[@id='{layer_id}']") is None:
+        safe_label = saxutils.escape(str(tag), entities={'"': "&quot;", "'": "&apos;"})
+        diagram.current_root.append(ET.fromstring(
+            f'<mxCell id="{layer_id}" value="{safe_label}" parent="0" visible="0" />'
+        ))
+        log_key = (page_name, layer_id)
+        if log_key not in created_tag_layers:
+            print(f'\n INFO : Создан слой тегов "{tag}" ({layer_id}) на странице "{page_name}"')
+            created_tag_layers.add(log_key)
+    return layer_id
+
+
+def add_link_to_layer(source_id: str, target_id: str, style: str, data: Dict[str, Any], layer_id: str) -> None:
+    previous_xml = diagram.drawio_link_object_xml
+    try:
+        diagram.drawio_link_object_xml = re.sub(r'parent="[^"]+"', f'parent="{layer_id}"', previous_xml, count=1)
+        semantic_id = data.get('OID') or data.get('id') or f'{source_id}->{target_id}'
+        layer_link_id = hashlib.md5(f'{semantic_id}|{source_id}|{target_id}|{layer_id}'.encode('utf-8')).hexdigest()
+        diagram.add_link(source=source_id, target=target_id, style=style, data=data, link_id=layer_link_id)
+    finally:
+        diagram.drawio_link_object_xml = previous_xml
+
+
 def apply_pattern_filters(pattern: Dict[str, Any], objects: Any) -> Any:
     if not isinstance(objects, dict):
         return objects
@@ -224,13 +265,24 @@ def apply_pattern_filters(pattern: Dict[str, Any], objects: Any) -> Any:
     exclude_field_regex = pattern.get('exclude_field_regex') or {}
     any_field_regex = pattern.get('any_field_regex') or {}
     exclude_any_field_regex = pattern.get('exclude_any_field_regex') or {}
+    include_tags = pattern.get('include_tags') or []
+    require_tags = pattern.get('require_tags') or []
+    exclude_tags = pattern.get('exclude_tags') or []
 
     if (
         not id_regex and not exclude_id_regex and not require_fields and not exclude_fields
         and not field_regex and not exclude_field_regex
         and not any_field_regex and not exclude_any_field_regex
+        and not include_tags and not require_tags and not exclude_tags
     ):
         return objects
+
+    def normalize_filter_values(value: Any) -> set[str]:
+        return set(normalize_tag_values(value))
+
+    include_tag_set = normalize_filter_values(include_tags)
+    require_tag_set = normalize_filter_values(require_tags)
+    exclude_tag_set = normalize_filter_values(exclude_tags)
 
     def iter_field_values(obj: Dict[str, Any], field: str) -> list[str]:
         value = obj.get(field)
@@ -239,6 +291,11 @@ def apply_pattern_filters(pattern: Dict[str, Any], objects: Any) -> Any:
         if value is None:
             return []
         return [str(value)]
+
+    def object_tags(obj: Any) -> set[str]:
+        if not isinstance(obj, dict):
+            return set()
+        return normalize_filter_values(obj.get('tags'))
 
     def matches_all(obj: Dict[str, Any], rules: Dict[str, str]) -> bool:
         for field, regex in rules.items():
@@ -273,6 +330,13 @@ def apply_pattern_filters(pattern: Dict[str, Any], objects: Any) -> Any:
         if any_field_regex and not matches_any(object_data, any_field_regex):
             continue
         if exclude_any_field_regex and matches_any(object_data, exclude_any_field_regex):
+            continue
+        tags = object_tags(object_data)
+        if include_tag_set and tags.isdisjoint(include_tag_set):
+            continue
+        if require_tag_set and not require_tag_set.issubset(tags):
+            continue
+        if exclude_tag_set and not tags.isdisjoint(exclude_tag_set):
             continue
         filtered[object_id] = object_data
     return filtered
@@ -440,7 +504,7 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
     type_filter = object_pattern.get('type')
 
     if kwargs.get('network_link'):
-        schema_name = SeafSchema.NETWORK_LINK
+        schema_name = SeafSchema.NETWORK_LINK.value
         type_filter = None
 
     source_id = 'Unknown'
@@ -538,7 +602,13 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
                         if kwargs.get('logical_link'):
                             style = 'style'+ str(targets['direction']) # Выбор стиля стрелки
                             style_value = adjust_link_style(pattern[style])
-                            diagram.add_link(source=source_id, target=target_id, style=style_value, data=targets)
+                            tags = normalize_tag_values(targets.get('tags'))
+                            if tags:
+                                for tag in tags:
+                                    layer_id = ensure_tag_layer(tag, prefix='logical')
+                                    add_link_to_layer(source_id, target_id, style_value, targets, layer_id)
+                            else:
+                                diagram.add_link(source=source_id, target=target_id, style=style_value, data=targets)
                         else:
                             base_style = adjust_link_style(pattern['style'])
                             diagram.add_link(source=source_id, target=target_id, style=base_style)

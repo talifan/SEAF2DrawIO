@@ -1,5 +1,4 @@
 import xml.etree.ElementTree as ET
-from lib.schemas import SeafSchema
 
 
 def find_parent(root, target):
@@ -181,12 +180,9 @@ def advanced_analysis(conf, expected_counts, expected_data, pattern_specs, d):
                         continue
                     if oid in ignore_object_ids:
                         continue
-                    # Logical links: use OID (semantic id) if available, skip non-edge objects
-                    _LOGICAL_LINK_SCHEMAS = {'seaf.ta.services.logical_link', SeafSchema.LOGICAL_LINK}
-                    if schema in _LOGICAL_LINK_SCHEMAS:
-                        cell = obj.find('mxCell')
-                        if cell is None or cell.get('edge') != '1':
-                            continue
+                    # Edges may be duplicated visually; compare them by semantic OID.
+                    cell = obj.find('mxCell')
+                    if cell is not None and cell.get('edge') == '1' and obj.get('OID'):
                         oid = obj.get('OID') or oid
                     per_page_total[page][schema] = per_page_total[page].get(schema, 0) + 1
                     per_page_unique[page].setdefault(schema, set()).add(oid)
@@ -197,11 +193,8 @@ def advanced_analysis(conf, expected_counts, expected_data, pattern_specs, d):
                     continue
                 if oid in ignore_object_ids:
                     continue
-                _LOGICAL_LINK_SCHEMAS = {'seaf.ta.services.logical_link', 'seaf.company.ta.services.logical_links'}
-                if schema in _LOGICAL_LINK_SCHEMAS:
-                    cell = obj.find('mxCell')
-                    if cell is None or cell.get('edge') != '1':
-                        continue
+                cell = obj.find('mxCell')
+                if cell is not None and cell.get('edge') == '1' and obj.get('OID'):
                     oid = obj.get('OID') or oid
                 drawn_total[schema] = drawn_total.get(schema, 0) + 1
                 drawn_unique.setdefault(schema, set()).add(oid)

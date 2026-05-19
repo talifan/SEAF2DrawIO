@@ -1,4 +1,21 @@
 seaf.company.ta.services.logical_links:
+  jupiter.link.internet_to_av_db_update:
+    description: Технический поток данных из Internet к сервису антивирусной защиты для получения баз данных через пограничные и сегментирующие NGFW.
+    direction: ==>
+    source: jupiter.network_segment.dc.internet
+    stand:
+    - jupiter.stand.prod
+    tags:
+    - technical-data-flow
+    - internet
+    - firewall
+    - antivirus-db-update
+    target:
+    - jupiter.network_device.dc.fw.01
+    - jupiter.network_device.dc.fw.03
+    - jupiter.kb.5
+    title: Получение баз данных
+    topology: chain
   jupiter.link.fw_to_servers:
     description: Логическая связь от NGFW к серверам в ЦОД Sber
     direction: <==>
@@ -9,4 +26,7 @@ seaf.company.ta.services.logical_links:
     - jupiter.compute_service.ad
     - jupiter.compute_service.mail
     title: Связь NGFW с серверами
+    topology: chain
+    tags:
+      - firewall
 
