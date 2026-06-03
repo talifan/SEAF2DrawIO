@@ -1,8 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Added optional common location page generation via `common_location_page` and `--common-location-page`.
+- The common page stacks generated office and DC diagrams vertically, deduplicates provider networks from Internet-facing zones, and reconnects copied links to shared provider nodes.
+- Documented common page configuration, logical link `topology`, and tag-based logical link layers.
+
 ## 1.8.0
 
 - Migrated generation and reverse conversion flow to `seaf.company.ta.*` naming.
+- Added `topology` support for logical links in `seaf2drawio.py`: `star` keeps source-to-all-targets rendering, while `chain` renders ordered point-to-point routes through the `target` list.
+- Added logging for logical links with missing or unknown `topology` and warnings for links that cannot be drawn because an endpoint is absent from the current page.
 - Added directory input support in `config.yaml` for `data_yaml_file` (auto-load `*.yaml`/`*.yml`).
 - Updated helper scripts (`scripts/scale_drawio_services.py`, `scripts/layout_tech_services.py`) for new schemas.
 - Improved ISP placement on `Main Schema` to avoid overlaps by container-aware positioning.

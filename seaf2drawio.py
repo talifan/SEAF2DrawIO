@@ -4,6 +4,7 @@ import re
 import os
 import argparse
 import subprocess
+import hashlib
 from copy import deepcopy
 from typing import Optional, Dict, List, Set, Any
 from lib import seaf_drawio
@@ -21,6 +22,7 @@ diagram_pages = {'main': ['Main Schema'], 'office': [], 'dc': []}
 diagram_ids = {'Main Schema': set()}
 conf = {}
 pending_missing_links = set()
+logged_default_topology_links = set()
 layout_counters = {}
 expected_counts = {}
 expected_data = {}
@@ -28,6 +30,7 @@ pattern_specs = {}
 data_store = None
 link_style_override = ''
 EXTERNAL_INTERNET_NETWORK = '0.0.0.0/0'
+created_tag_layers = set()
 
 # Переменные по умолчанию
 DEFAULT_CONFIG = {
@@ -36,7 +39,11 @@ DEFAULT_CONFIG = {
         "drawio_pattern": "data/base.drawio",
         "output_file": "result/Sample_graph.drawio",
         "verify_generation": False,
-        "auto_layout_grid": False
+        "auto_layout_grid": False,
+        "common_location_page": False,
+        "common_location_page_name": "Общая схема",
+        "common_location_page_gap": 120,
+        "common_location_provider_zones": ["INTERNET", "INET-EDGE"]
     }
 }
 
@@ -55,6 +62,8 @@ def cli_vars(config):
                             required=False)
         parser.add_argument("-p", "--pattern", type=dst_validator, action=seaf_drawio.ValidateFile, help="шаблон drawio",
                             required=False)
+        parser.add_argument("--common-location-page", action="store_true", help="сгенерировать общую схему локаций")
+        parser.add_argument("--common-location-page-name", type=str, help="имя общей схемы локаций")
         parser.add_argument("--debug", action="store_true", help="включить подробную диагностику")
         args = parser.parse_args()
         if args.src:
@@ -63,6 +72,10 @@ def cli_vars(config):
             config['output_file'] = args.dst
         if args.pattern:
             config['drawio_pattern'] = args.pattern
+        if args.common_location_page:
+            config['common_location_page'] = True
+        if args.common_location_page_name:
+            config['common_location_page_name'] = args.common_location_page_name
         if args.debug:
             config['debug'] = True
         return config
@@ -201,6 +214,53 @@ def get_external_internet_geometry(segment_id: str, pattern: Dict[str, Any]) -> 
     return x_pos, y_pos
 
 
+def normalize_tag_values(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value if item is not None]
+    return [str(value)]
+
+
+def tag_layer_id(tag: str, prefix: str = 'logical') -> str:
+    normalized = re.sub(r'[^A-Za-z0-9_.-]+', '_', str(tag).strip()).strip('_').lower()
+    if not normalized:
+        normalized = hashlib.md5(str(tag).encode('utf-8')).hexdigest()[:8]
+    return f'layer.{prefix}.{normalized}'
+
+
+def ensure_tag_layer(tag: str, prefix: str = 'logical') -> str:
+    layer_id = tag_layer_id(tag, prefix=prefix)
+    if diagram.current_root.find(f"./mxCell[@id='{layer_id}']") is None:
+        safe_label = saxutils.escape(str(tag), entities={'"': "&quot;", "'": "&apos;"})
+        diagram.current_root.append(ET.fromstring(
+            f'<mxCell id="{layer_id}" value="{safe_label}" parent="0" visible="0" />'
+        ))
+        log_key = (page_name, layer_id)
+        if log_key not in created_tag_layers:
+            print(f'\n INFO : Создан слой тегов "{tag}" ({layer_id}) на странице "{page_name}"')
+            created_tag_layers.add(log_key)
+    return layer_id
+
+
+def add_link_to_layer(
+    source_id: str,
+    target_id: str,
+    style: str,
+    data: Dict[str, Any],
+    layer_id: str,
+    link_id: str = '',
+) -> None:
+    previous_xml = diagram.drawio_link_object_xml
+    try:
+        diagram.drawio_link_object_xml = re.sub(r'parent="[^"]+"', f'parent="{layer_id}"', previous_xml, count=1)
+        semantic_id = link_id or data.get('OID') or data.get('id') or f'{source_id}->{target_id}'
+        layer_link_id = hashlib.md5(f'{semantic_id}|{source_id}|{target_id}|{layer_id}'.encode('utf-8')).hexdigest()
+        diagram.add_link(source=source_id, target=target_id, style=style, data=data, link_id=layer_link_id)
+    finally:
+        diagram.drawio_link_object_xml = previous_xml
+
+
 def apply_pattern_filters(pattern: Dict[str, Any], objects: Any) -> Any:
     if not isinstance(objects, dict):
         return objects
@@ -213,13 +273,24 @@ def apply_pattern_filters(pattern: Dict[str, Any], objects: Any) -> Any:
     exclude_field_regex = pattern.get('exclude_field_regex') or {}
     any_field_regex = pattern.get('any_field_regex') or {}
     exclude_any_field_regex = pattern.get('exclude_any_field_regex') or {}
+    include_tags = pattern.get('include_tags') or []
+    require_tags = pattern.get('require_tags') or []
+    exclude_tags = pattern.get('exclude_tags') or []
 
     if (
         not id_regex and not exclude_id_regex and not require_fields and not exclude_fields
         and not field_regex and not exclude_field_regex
         and not any_field_regex and not exclude_any_field_regex
+        and not include_tags and not require_tags and not exclude_tags
     ):
         return objects
+
+    def normalize_filter_values(value: Any) -> set[str]:
+        return set(normalize_tag_values(value))
+
+    include_tag_set = normalize_filter_values(include_tags)
+    require_tag_set = normalize_filter_values(require_tags)
+    exclude_tag_set = normalize_filter_values(exclude_tags)
 
     def iter_field_values(obj: Dict[str, Any], field: str) -> list[str]:
         value = obj.get(field)
@@ -228,6 +299,11 @@ def apply_pattern_filters(pattern: Dict[str, Any], objects: Any) -> Any:
         if value is None:
             return []
         return [str(value)]
+
+    def object_tags(obj: Any) -> set[str]:
+        if not isinstance(obj, dict):
+            return set()
+        return normalize_filter_values(obj.get('tags'))
 
     def matches_all(obj: Dict[str, Any], rules: Dict[str, str]) -> bool:
         for field, regex in rules.items():
@@ -262,6 +338,13 @@ def apply_pattern_filters(pattern: Dict[str, Any], objects: Any) -> Any:
         if any_field_regex and not matches_any(object_data, any_field_regex):
             continue
         if exclude_any_field_regex and matches_any(object_data, exclude_any_field_regex):
+            continue
+        tags = object_tags(object_data)
+        if include_tag_set and tags.isdisjoint(include_tag_set):
+            continue
+        if require_tag_set and not require_tag_set.issubset(tags):
+            continue
+        if exclude_tag_set and not tags.isdisjoint(exclude_tag_set):
             continue
         filtered[object_id] = object_data
     return filtered
@@ -429,7 +512,7 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
     type_filter = object_pattern.get('type')
 
     if kwargs.get('network_link'):
-        schema_name = SeafSchema.NETWORK_LINK
+        schema_name = SeafSchema.NETWORK_LINK.value
         type_filter = None
 
     source_id = 'Unknown'
@@ -463,9 +546,67 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
     for source_id, targets in source_objects.items():  # source_id - ID объекта
 
         if kwargs.get('logical_link'):
+            link_oid = source_id
             targets['OID'] = source_id
             source_id = targets['source']
             targets['schema'] = pattern['schema']
+
+            raw_topology = targets.get('topology')
+            topology = str(raw_topology or 'star').lower()
+            if not raw_topology and link_oid not in logged_default_topology_links:
+                print(f"\nINFO: logical_link {link_oid} on page '{page_name}': topology is not set, using star.")
+                logged_default_topology_links.add(link_oid)
+            elif topology not in {'star', 'chain'}:
+                print(
+                    f"\nWARNING: logical_link {link_oid} on page '{page_name}': "
+                    f"unknown topology '{raw_topology}', using star."
+                )
+                topology = 'star'
+            targets['topology'] = topology
+
+            link_targets = targets.get(pattern['targets']) or []
+            if not isinstance(link_targets, list):
+                link_targets = [link_targets]
+            link_targets = [target_id for target_id in link_targets if target_id]
+            if not link_targets:
+                continue
+
+            if topology == 'chain':
+                link_steps = list(zip([source_id] + link_targets[:-1], link_targets))
+            else:
+                link_steps = [(source_id, target_id) for target_id in link_targets]
+
+            for step_index, (step_source_id, target_id) in enumerate(link_steps):
+                try:
+                    style = 'style' + str(targets['direction'])  # Выбор стиля стрелки
+                    style_value = adjust_link_style(pattern[style])
+                    link_id = f"{link_oid}:{topology}:{step_index}:{step_source_id}:{target_id}"
+                    if step_source_id in diagram_ids[page_name] and target_id in diagram_ids[page_name]:
+                        tags = normalize_tag_values(targets.get('tags'))
+                        if tags:
+                            for tag in tags:
+                                layer_id = ensure_tag_layer(tag, prefix='logical')
+                                add_link_to_layer(step_source_id, target_id, style_value, targets, layer_id, link_id=link_id)
+                        else:
+                            diagram.add_link(
+                                source=step_source_id,
+                                target=target_id,
+                                style=style_value,
+                                data=targets,
+                                link_id=link_id
+                            )
+                    elif step_source_id in diagram_ids[page_name] or target_id in diagram_ids[page_name]:
+                        pending_missing_links.add((page_name, step_source_id, target_id))
+                        print(
+                            f"\nWARNING: logical_link {link_oid} on page '{page_name}': "
+                            f"can't draw {topology} edge {step_source_id} -> {target_id}; endpoint missing."
+                        )
+                except KeyError as e:
+                    print(
+                        f"\nINFO : Не найден параметр {e} для объекта "
+                        f"'{pattern['schema']}/{link_oid}' при добавлении связей на диаграмму '{page_name}'."
+                    )
+            continue
 
         if kwargs.get('network_link'):
             link_data = targets
@@ -527,15 +668,19 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
                         if kwargs.get('logical_link'):
                             style = 'style'+ str(targets['direction']) # Выбор стиля стрелки
                             style_value = adjust_link_style(pattern[style])
-                            diagram.add_link(source=source_id, target=target_id, style=style_value, data=targets)
+                            tags = normalize_tag_values(targets.get('tags'))
+                            if tags:
+                                for tag in tags:
+                                    layer_id = ensure_tag_layer(tag, prefix='logical')
+                                    add_link_to_layer(source_id, target_id, style_value, targets, layer_id)
+                            else:
+                                diagram.add_link(source=source_id, target=target_id, style=style_value, data=targets)
                         else:
                             base_style = adjust_link_style(pattern['style'])
                             diagram.add_link(source=source_id, target=target_id, style=base_style)
                     else:
                         # Defer logging: cross-page targets are expected; warn later only if missing everywhere
                         pending_missing_links.add((page_name, source_id, target_id))
-                        #print(f' Can\'t link  {source_id} <---> {target_id}, object {target_id} not found at the page '
-                        #      f'{page_name}')
         except KeyError as e:
             pass
             print(f" INFO : Не найден параметр {e} для объекта '{pattern['schema']}/{source_id}' при добавлении связей на диаграмму '{page_name}'.")
@@ -543,6 +688,7 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
             pass
             print(
                 f"Error: у объекта '{source_id}' отсутствует данные для создания линка в параметре {pattern['targets']} ")
+
 
 def collect_ids():
     try:
@@ -598,6 +744,359 @@ def run_auto_layout_if_enabled(conf: Dict[str, Any]) -> None:
     run_postprocess(segment_script_path, 'segment-layout-post')
 
 
+def _num(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _fmt_num(value: float) -> str:
+    return str(int(value)) if float(value).is_integer() else f"{value:.2f}".rstrip('0').rstrip('.')
+
+
+def _mx_cell(element: ET.Element) -> Optional[ET.Element]:
+    return element.find('mxCell') if element.tag == 'object' else element
+
+
+def _element_id(element: ET.Element) -> str:
+    mx = _mx_cell(element)
+    return element.get('id') or (mx.get('id') if mx is not None else '')
+
+
+def _first_value(value: Any) -> str:
+    if isinstance(value, list):
+        return str(value[0]) if value else ''
+    return str(value or '')
+
+
+def _segment_zone(segment_id: str) -> str:
+    segment_data = get_schema_object(SeafSchema.NETWORK_SEGMENT, segment_id)
+    return str(segment_data.get('zone') or '').upper()
+
+
+def _is_common_provider_network(obj: ET.Element, provider_zones: Set[str]) -> bool:
+    if obj.tag != 'object':
+        return False
+    if obj.get('schema') != SeafSchema.NETWORK:
+        return False
+    if not obj.get('provider'):
+        return False
+    segment_id = _first_value(get_schema_object(SeafSchema.NETWORK, obj.get('id') or '').get('segment'))
+    if not segment_id:
+        segment_id = str(obj.get('segment') or '')
+    zone = _segment_zone(segment_id)
+    return zone in provider_zones or segment_id.lower().endswith('.inet')
+
+
+def _provider_key(provider: str) -> str:
+    return re.sub(r'\s+', ' ', provider.strip()).casefold()
+
+
+def _provider_id(provider: str) -> str:
+    slug = re.sub(r'[^a-z0-9_-]+', '_', provider.casefold()).strip('_')
+    digest = hashlib.sha1(provider.casefold().encode('utf-8')).hexdigest()[:8]
+    return f"common_provider_{slug or 'provider'}_{digest}"
+
+
+def _build_page_index(root: ET.Element) -> Dict[str, Dict[str, Any]]:
+    elements_by_id = {}
+    cells_by_id = {}
+    children_by_parent = {}
+    for element in list(root):
+        element_id = _element_id(element)
+        mx = _mx_cell(element)
+        if element_id:
+            elements_by_id[element_id] = element
+        if mx is None:
+            continue
+        cell_id = mx.get('id') or element_id
+        if cell_id:
+            cells_by_id[cell_id] = mx
+        parent_id = mx.get('parent')
+        if parent_id and element_id:
+            children_by_parent.setdefault(parent_id, []).append(element_id)
+    return {
+        'elements_by_id': elements_by_id,
+        'cells_by_id': cells_by_id,
+        'children_by_parent': children_by_parent,
+    }
+
+
+def _absolute_geometry(cell_id: str, index: Dict[str, Dict[str, Any]], seen: Optional[Set[str]] = None) -> Optional[tuple]:
+    seen = seen or set()
+    if cell_id in seen:
+        return None
+    seen.add(cell_id)
+    cell = index['cells_by_id'].get(cell_id)
+    if cell is None or cell.get('vertex') != '1':
+        return None
+    geometry = cell.find('mxGeometry')
+    if geometry is None:
+        return None
+    x = _num(geometry.get('x'))
+    y = _num(geometry.get('y'))
+    width = _num(geometry.get('width'))
+    height = _num(geometry.get('height'))
+    parent_id = cell.get('parent')
+    if parent_id and parent_id not in {'0', '1'}:
+        parent_geometry = _absolute_geometry(parent_id, index, seen)
+        if parent_geometry is not None:
+            x += parent_geometry[0]
+            y += parent_geometry[1]
+    return x, y, width, height
+
+
+def _page_bbox(root: ET.Element) -> tuple:
+    index = _build_page_index(root)
+    boxes = []
+    for cell_id, cell in index['cells_by_id'].items():
+        if cell.get('vertex') != '1' or cell.get('visible') == '0':
+            continue
+        geometry = _absolute_geometry(cell_id, index)
+        if geometry is None:
+            continue
+        x, y, width, height = geometry
+        boxes.append((x, y, x + width, y + height))
+    if not boxes:
+        return 0.0, 0.0, 0.0, 0.0
+    return (
+        min(box[0] for box in boxes),
+        min(box[1] for box in boxes),
+        max(box[2] for box in boxes),
+        max(box[3] for box in boxes),
+    )
+
+
+def _descendant_ids(root_id: str, children_by_parent: Dict[str, List[str]]) -> Set[str]:
+    result = set()
+    stack = [root_id]
+    while stack:
+        current = stack.pop()
+        if current in result:
+            continue
+        result.add(current)
+        stack.extend(children_by_parent.get(current, []))
+    return result
+
+
+def _shift_geometry(element: ET.Element, x_delta: float, y_delta: float) -> None:
+    mx = _mx_cell(element)
+    if mx is None:
+        return
+    geometry = mx.find('mxGeometry')
+    if geometry is not None and mx.get('parent') in {'0', '1'}:
+        if geometry.get('x') is not None:
+            geometry.set('x', _fmt_num(_num(geometry.get('x')) + x_delta))
+        if geometry.get('y') is not None:
+            geometry.set('y', _fmt_num(_num(geometry.get('y')) + y_delta))
+    if mx.get('edge') == '1':
+        for point in mx.findall('.//mxPoint'):
+            if point.get('x') is not None:
+                point.set('x', _fmt_num(_num(point.get('x')) + x_delta))
+            if point.get('y') is not None:
+                point.set('y', _fmt_num(_num(point.get('y')) + y_delta))
+
+
+def _rewrite_ids(element: ET.Element, id_map: Dict[str, str]) -> None:
+    for node in element.iter():
+        for attr in ('id', 'parent', 'source', 'target'):
+            value = node.get(attr)
+            if not value:
+                continue
+            if attr == 'parent' and value in {'0', '1'}:
+                continue
+            node.set(attr, id_map.get(value, value))
+        for attr in ('source', 'target'):
+            value = node.get(attr)
+            if value:
+                node.set(attr, id_map.get(value, value))
+    if element.tag == 'object':
+        element.attrib.pop('schema', None)
+        element.set('common_visual_copy', 'true')
+
+
+def _edge_targets_common_provider(element: ET.Element, common_provider_ids: Set[str]) -> bool:
+    mx = _mx_cell(element)
+    if mx is None or mx.get('edge') != '1':
+        return False
+    return mx.get('source') in common_provider_ids or mx.get('target') in common_provider_ids
+
+
+def _reset_edge_geometry(element: ET.Element) -> None:
+    mx = _mx_cell(element)
+    if mx is None or mx.get('edge') != '1':
+        return
+    geometry = mx.find('mxGeometry')
+    if geometry is None:
+        geometry = ET.SubElement(mx, 'mxGeometry')
+    geometry.attrib.clear()
+    geometry.set('relative', '1')
+    geometry.set('as', 'geometry')
+    for child in list(geometry):
+        geometry.remove(child)
+
+
+def _create_common_provider_node(provider_id: str, label: str, x: float, y: float) -> ET.Element:
+    safe_id = saxutils.escape(provider_id, entities={'"': "&quot;", "'": "&apos;"})
+    safe_label = saxutils.escape(label, entities={'"': "&quot;", "'": "&apos;"})
+    return ET.fromstring(f"""
+    <object id="{safe_id}" label="{safe_label}" common_provider="true">
+      <mxCell style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+        <mxGeometry x="{_fmt_num(x)}" y="{_fmt_num(y)}" width="160" height="80" as="geometry" />
+      </mxCell>
+    </object>
+    """)
+
+
+def build_common_location_page(conf: Dict[str, Any], source_pages: List[str]) -> None:
+    if not conf.get('common_location_page'):
+        return
+
+    output_file = conf.get('output_file')
+    if not output_file or not os.path.exists(output_file):
+        return
+
+    tree = ET.parse(output_file)
+    root = tree.getroot()
+    common_page_name = conf.get('common_location_page_name', 'Общая схема')
+    for existing in list(root.findall('diagram')):
+        if existing.get('name') == common_page_name:
+            root.remove(existing)
+
+    source_diagrams = [item for name in source_pages for item in root.findall(f"./diagram[@name='{name}']")]
+    if not source_diagrams:
+        return
+
+    page_id = 'common_location_page'
+    if root.find(f"./diagram[@id='{page_id}']") is not None:
+        page_id = f"{page_id}_{len(root.findall('diagram')) + 1}"
+
+    common_diagram = ET.Element('diagram', {'id': page_id, 'name': common_page_name})
+    model = ET.SubElement(common_diagram, 'mxGraphModel', {
+        'dx': '1800',
+        'dy': '1200',
+        'grid': '1',
+        'gridSize': '10',
+        'guides': '1',
+        'tooltips': '1',
+        'connect': '1',
+        'arrows': '1',
+        'fold': '1',
+        'page': '1',
+        'pageScale': '1',
+        'pageWidth': '1800',
+        'pageHeight': '1200',
+        'math': '0',
+        'shadow': '0',
+    })
+    common_root = ET.SubElement(model, 'root')
+    ET.SubElement(common_root, 'mxCell', {'id': '0'})
+    ET.SubElement(common_root, 'mxCell', {'id': '1', 'parent': '0'})
+
+    margin_x = 40.0
+    cursor_y = 40.0
+    gap = _num(conf.get('common_location_page_gap'), 120.0)
+    provider_zones = {str(zone).upper() for zone in conf.get('common_location_provider_zones', ['INTERNET', 'INET-EDGE'])}
+    common_provider_ids = set()
+    provider_labels = {}
+    provider_occurrences = {}
+    max_right = margin_x
+
+    for page_index, source_diagram in enumerate(source_diagrams):
+        source_root = source_diagram.find('./mxGraphModel/root')
+        if source_root is None:
+            continue
+        min_x, min_y, max_x, max_y = _page_bbox(source_root)
+        x_delta = margin_x - min_x
+        y_delta = cursor_y - min_y
+        index = _build_page_index(source_root)
+        id_map = {}
+        skip_ids = set()
+
+        for element in list(source_root):
+            element_id = _element_id(element)
+            mx = _mx_cell(element)
+            if not element_id or mx is None:
+                continue
+            if _is_common_provider_network(element, provider_zones):
+                provider = str(element.get('provider') or element.get('title') or element.get('label') or 'Provider')
+                provider_key = _provider_key(provider)
+                common_provider_id = _provider_id(provider)
+                provider_labels.setdefault(provider_key, provider)
+                common_provider_ids.add(common_provider_id)
+                id_map[element_id] = common_provider_id
+
+                group_id = mx.get('parent')
+                if group_id and group_id not in {'0', '1'}:
+                    id_map[group_id] = common_provider_id
+                    skip_ids.update(_descendant_ids(group_id, index['children_by_parent']))
+                    group_geometry = _absolute_geometry(group_id, index)
+                    if group_geometry is not None:
+                        gx, gy, gw, gh = group_geometry
+                        provider_occurrences.setdefault(provider_key, []).append(gy + y_delta + gh / 2)
+                else:
+                    provider_occurrences.setdefault(provider_key, []).append(cursor_y)
+
+        for element in list(source_root):
+            element_id = _element_id(element)
+            if element_id in {'0', '1'} or element_id in skip_ids:
+                continue
+            if element_id and element_id not in id_map:
+                id_map[element_id] = f"common_{page_index}_{element_id}"
+            mx = _mx_cell(element)
+            if mx is not None:
+                cell_id = mx.get('id')
+                if cell_id and cell_id not in {'0', '1'} and cell_id not in id_map:
+                    id_map[cell_id] = f"common_{page_index}_{cell_id}"
+
+        for element in list(source_root):
+            element_id = _element_id(element)
+            if element_id in {'0', '1'} or element_id in skip_ids:
+                continue
+            clone = deepcopy(element)
+            _rewrite_ids(clone, id_map)
+            mx = _mx_cell(clone)
+            if mx is not None and mx.get('edge') == '1' and mx.get('source') == mx.get('target'):
+                continue
+            if _edge_targets_common_provider(clone, common_provider_ids):
+                _reset_edge_geometry(clone)
+            _shift_geometry(clone, x_delta, y_delta)
+            common_root.append(clone)
+
+        max_right = max(max_right, max_x + x_delta)
+        cursor_y += (max_y - min_y) + gap
+
+    provider_x = max_right + 180
+    provider_positions = []
+    for provider_key, occurrences in provider_occurrences.items():
+        avg_y = sum(occurrences) / len(occurrences) if occurrences else 40.0
+        provider_positions.append((avg_y, provider_key))
+    provider_positions.sort()
+
+    last_y = None
+    for avg_y, provider_key in provider_positions:
+        node_y = avg_y - 40
+        if last_y is not None and node_y < last_y + 120:
+            node_y = last_y + 120
+        last_y = node_y
+        label = provider_labels.get(provider_key, provider_key)
+        common_root.append(_create_common_provider_node(_provider_id(label), label, provider_x, node_y))
+
+    page_width = max(provider_x + 240, max_right + 80)
+    page_height = max(cursor_y + 80, (last_y or 0) + 140, 1200)
+    for attr, value in {
+        'dx': page_width,
+        'dy': page_height,
+        'pageWidth': page_width,
+        'pageHeight': page_height,
+    }.items():
+        model.set(attr, _fmt_num(value))
+
+    root.append(common_diagram)
+    tree.write(output_file, encoding='utf-8', xml_declaration=True)
+
+
 if __name__ == '__main__':
 
     if sys.version_info < (3, 9):
@@ -627,6 +1126,7 @@ if __name__ == '__main__':
                 try:
                     object_data = d.get_object(conf['data_yaml_file'], object_pattern['schema'], type=object_pattern.get('type'),
                         sort=object_pattern['parent_id'] if object_pattern.get('parent_id') else None)
+
                     object_data = apply_pattern_filters(object_pattern, object_data)
 
                     add_pages(object_pattern)
@@ -675,3 +1175,5 @@ if __name__ == '__main__':
 
     # Check additional result info ...
     advanced_analysis(conf, expected_counts, expected_data, pattern_specs, d)
+
+    build_common_location_page(conf, diagram_pages.get('office', []) + diagram_pages.get('dc', []))

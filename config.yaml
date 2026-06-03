@@ -9,6 +9,24 @@ seaf2drawio:
   output_file: result/Sample_graph.drawio
   verify_generation: true
   auto_layout_grid: true
+
+  # Общая страница собирается после генерации основных листов Office/DC.
+  # Она копирует готовые страницы в один вертикальный стек и не участвует
+  # в проверке соответствия YAML, потому что не добавляет новых SEAF-сущностей.
+  common_location_page: true
+
+  # Имя итоговой страницы в DrawIO.
+  common_location_page_name: "Общая схема"
+
+  # Вертикальный зазор между скопированными схемами офисов/ЦОДов.
+  common_location_page_gap: 120
+
+  # Зоны, из которых провайдерские WAN-сети дедуплицируются:
+  # одинаковые provider-узлы выносятся вправо как общие узлы, а связи
+  # скопированных страниц переподключаются к ним.
+  common_location_provider_zones:
+    - INTERNET
+    - INET-EDGE
   auto_layout_script: scripts/layout_tech_services.py
   auto_layout_diagram: all
 # auto_layout_filter: DC,ЦОД,Office,Офис,Головной

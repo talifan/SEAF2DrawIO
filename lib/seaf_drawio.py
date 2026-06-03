@@ -793,7 +793,7 @@ class SeafDrawio:
                     if isinstance(json_obj[key], list):
                         try:
                             json_obj[key] = ast.literal_eval(value)
-                        except (SyntaxError, ValueError):
+                        except (SyntaxError, ValueError, TypeError):
                             json_obj[key] = value
                     else:
                         # Assign values directly

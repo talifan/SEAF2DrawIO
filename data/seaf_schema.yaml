@@ -35,6 +35,11 @@
             external_id:
                 title: Идентификатор во внешней системе
                 type: string
+            tags:
+                title: Теги
+                type: array
+                items:
+                  type: [string, number]
 
 #### Базовые свойства Технологического компонента ####
   seaf.ta.components.entity:
@@ -58,6 +63,11 @@
               external_id:
                 title: Идентификатор во внешней системе
                 type: string
+              tags:
+                title: Теги
+                type: array
+                items:
+                  type: [string, number]
 
 #### Описания технологических сервисов. Добавляются все необходимые поля и устанавливаются правила их наполнения ####
   seaf.company.ta.services.dc_regions:
@@ -255,6 +265,47 @@
               type: string
 
 ################ Сетевое устройство ##########################################################
+
+  seaf.company.ta.services.network_links:
+    title: Сетевой линк
+    objects:
+      network_links:
+        route: "/"
+        title: Сетевой линк
+    schema: # JSON Schema контролирующая описание объекта сущности
+      type: object
+      patternProperties:
+        "^[a-zA-Z0-9_\\.]*$":
+          $ref: "#/$defs/seaf.ta.services.base.entity"
+          properties:
+            typeL1:
+              title: Тип L1
+              type: string
+            typeL2:
+              title: Тип L2
+              type: string
+            technology:
+              title: Технология
+              type: string
+            encryption:
+              title: Шифрование
+              type: string
+            encapsulation:
+              title: Инкапсуляция
+              type: string
+            routing:
+              title: Маршрутизация
+              type: string
+            sla:
+              title: SLA
+              type: string
+            network_connection:
+              title: Перечисление связанных объектов
+              type: array
+              items:
+                anyOf:
+                  - $ref: "#/$rels/seaf.company.ta.services.networks.network"
+                  - $ref: "#/$rels/seaf.company.ta.components.networks.network"
 
   seaf.company.ta.components.networks:
     title: Network Appliance
