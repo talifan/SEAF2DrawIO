@@ -4,6 +4,9 @@
 
 - Added optional common location page generation via `common_location_page` and `--common-location-page`.
 - The common page stacks generated office and DC diagrams vertically, deduplicates provider networks from Internet-facing zones, and reconnects copied links to shared provider nodes.
+- The common page now redraws `logical_links`, including inter-location routes, while individual pages skip routes with endpoints outside the page.
+- Common-page `logical_links` now resolve all visual copies of duplicated SEAF objects, so links to stretched clusters are not collapsed to the first copied endpoint.
+- Untagged `logical_links` are moved to a separate visible foreground layer after generation, so they render above zone rectangles and the template `Links` layer.
 - Documented common page configuration, logical link `topology`, and tag-based logical link layers.
 
 ## 1.8.0

@@ -31,6 +31,13 @@ data_store = None
 link_style_override = ''
 EXTERNAL_INTERNET_NETWORK = '0.0.0.0/0'
 created_tag_layers = set()
+VISIBLE_LOGICAL_LAYER_ID = 'layer.logical.visible'
+VISIBLE_LOGICAL_LAYER_LABEL = 'Logical Links'
+LOGICAL_LINK_STYLES = {
+    '==>': "edgeStyle=orthogonalEdgeStyle;curved=1;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.25;exitDx=0;exitDy=0;strokeColor=#0057B8;strokeWidth=4;dashed=1;dashPattern=8 4;endArrow=block;endFill=1;jumpStyle=arc;",
+    '<==>': "edgeStyle=orthogonalEdgeStyle;curved=1;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#008A00;strokeWidth=4;dashed=1;dashPattern=8 4;startArrow=block;startFill=1;endArrow=block;endFill=1;jumpStyle=arc;",
+    '<==': "edgeStyle=orthogonalEdgeStyle;curved=1;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#C00000;strokeWidth=4;dashed=1;dashPattern=8 4;startArrow=block;startFill=1;endArrow=none;jumpStyle=arc;",
+}
 
 # Переменные по умолчанию
 DEFAULT_CONFIG = {
@@ -220,6 +227,54 @@ def normalize_tag_values(value: Any) -> list[str]:
     if isinstance(value, (list, tuple, set)):
         return [str(item) for item in value if item is not None]
     return [str(value)]
+
+
+def normalize_logical_topology(link_oid: str, link_data: Dict[str, Any]) -> str:
+    raw_topology = link_data.get('topology')
+    topology = str(raw_topology or 'star').lower()
+    if not raw_topology and link_oid not in logged_default_topology_links:
+        print(f"\nINFO: logical_link {link_oid} on page '{page_name}': topology is not set, using star.")
+        logged_default_topology_links.add(link_oid)
+    elif topology not in {'star', 'chain'}:
+        print(
+            f"\nWARNING: logical_link {link_oid} on page '{page_name}': "
+            f"unknown topology '{raw_topology}', using star."
+        )
+        topology = 'star'
+    link_data['topology'] = topology
+    return topology
+
+
+def logical_link_targets(link_data: Dict[str, Any], targets_key: str = 'target') -> list[str]:
+    link_targets = link_data.get(targets_key) or []
+    if not isinstance(link_targets, list):
+        link_targets = [link_targets]
+    return [target_id for target_id in link_targets if target_id]
+
+
+def logical_link_steps(source_id: str, target_ids: list[str], topology: str) -> list[tuple[str, str]]:
+    if topology == 'chain':
+        return list(zip([source_id] + target_ids[:-1], target_ids))
+    return [(source_id, target_id) for target_id in target_ids]
+
+
+def logical_link_style(direction: str, pattern: Optional[Dict[str, Any]] = None) -> str:
+    style_key = 'style' + str(direction)
+    style = pattern.get(style_key, '') if pattern else ''
+    if not style:
+        style = LOGICAL_LINK_STYLES.get(str(direction), LOGICAL_LINK_STYLES['==>'])
+    return adjust_link_style(style)
+
+
+def is_cross_page_logical_link(steps: list[tuple[str, str]], current_page_ids: Set[str]) -> bool:
+    present_steps = [
+        (source_id in current_page_ids, target_id in current_page_ids)
+        for source_id, target_id in steps
+    ]
+    return any(source_present or target_present for source_present, target_present in present_steps) and not all(
+        source_present and target_present
+        for source_present, target_present in present_steps
+    )
 
 
 def tag_layer_id(tag: str, prefix: str = 'logical') -> str:
@@ -551,35 +606,26 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
             source_id = targets['source']
             targets['schema'] = pattern['schema']
 
-            raw_topology = targets.get('topology')
-            topology = str(raw_topology or 'star').lower()
-            if not raw_topology and link_oid not in logged_default_topology_links:
-                print(f"\nINFO: logical_link {link_oid} on page '{page_name}': topology is not set, using star.")
-                logged_default_topology_links.add(link_oid)
-            elif topology not in {'star', 'chain'}:
-                print(
-                    f"\nWARNING: logical_link {link_oid} on page '{page_name}': "
-                    f"unknown topology '{raw_topology}', using star."
-                )
-                topology = 'star'
-            targets['topology'] = topology
-
-            link_targets = targets.get(pattern['targets']) or []
-            if not isinstance(link_targets, list):
-                link_targets = [link_targets]
-            link_targets = [target_id for target_id in link_targets if target_id]
+            topology = normalize_logical_topology(link_oid, targets)
+            link_targets = logical_link_targets(targets, pattern['targets'])
             if not link_targets:
                 continue
 
-            if topology == 'chain':
-                link_steps = list(zip([source_id] + link_targets[:-1], link_targets))
-            else:
-                link_steps = [(source_id, target_id) for target_id in link_targets]
+            link_steps = logical_link_steps(source_id, link_targets, topology)
+            if is_cross_page_logical_link(link_steps, diagram_ids[page_name]):
+                for step_source_id, target_id in link_steps:
+                    if step_source_id in diagram_ids[page_name] or target_id in diagram_ids[page_name]:
+                        pending_missing_links.add((page_name, step_source_id, target_id))
+                if conf.get('debug'):
+                    print(
+                        f"\nINFO: logical_link {link_oid} on page '{page_name}': "
+                        "skipped because the route has endpoints outside this page."
+                    )
+                continue
 
             for step_index, (step_source_id, target_id) in enumerate(link_steps):
                 try:
-                    style = 'style' + str(targets['direction'])  # Выбор стиля стрелки
-                    style_value = adjust_link_style(pattern[style])
+                    style_value = logical_link_style(targets['direction'], pattern)
                     link_id = f"{link_oid}:{topology}:{step_index}:{step_source_id}:{target_id}"
                     if step_source_id in diagram_ids[page_name] and target_id in diagram_ids[page_name]:
                         tags = normalize_tag_values(targets.get('tags'))
@@ -588,11 +634,12 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
                                 layer_id = ensure_tag_layer(tag, prefix='logical')
                                 add_link_to_layer(step_source_id, target_id, style_value, targets, layer_id, link_id=link_id)
                         else:
-                            diagram.add_link(
-                                source=step_source_id,
-                                target=target_id,
+                            add_link_to_layer(
+                                source_id=step_source_id,
+                                target_id=target_id,
                                 style=style_value,
                                 data=targets,
+                                layer_id='1',
                                 link_id=link_id
                             )
                     elif step_source_id in diagram_ids[page_name] or target_id in diagram_ids[page_name]:
@@ -674,7 +721,7 @@ def add_links(pattern: Dict[str, Any], **kwargs: bool) -> None:
                                     layer_id = ensure_tag_layer(tag, prefix='logical')
                                     add_link_to_layer(source_id, target_id, style_value, targets, layer_id)
                             else:
-                                diagram.add_link(source=source_id, target=target_id, style=style_value, data=targets)
+                                add_link_to_layer(source_id, target_id, style_value, targets, '1')
                         else:
                             base_style = adjust_link_style(pattern['style'])
                             diagram.add_link(source=source_id, target=target_id, style=base_style)
@@ -710,6 +757,58 @@ def collect_ids():
         })
     except Exception as Ex:
         print(f"Exception Collect ID : {Ex}")
+
+
+def common_only_logical_link_ids() -> Set[str]:
+    logical_links = d.get_object(conf['data_yaml_file'], SeafSchema.LOGICAL_LINK.value)
+    if not isinstance(logical_links, dict):
+        return set()
+
+    result = set()
+    page_id_sets = {
+        name: ids
+        for name, ids in diagram_ids.items()
+        if name != 'Main Schema'
+    }
+    for link_oid, link_data in logical_links.items():
+        if not isinstance(link_data, dict):
+            continue
+        source_id = link_data.get('source')
+        target_ids = logical_link_targets(link_data)
+        if not source_id or not target_ids:
+            continue
+        route_ids = [source_id] + target_ids
+        pages_with_any = [
+            name
+            for name, ids in page_id_sets.items()
+            if any(route_id in ids for route_id in route_ids)
+        ]
+        all_endpoints_present = all(
+            any(route_id in ids for ids in page_id_sets.values())
+            for route_id in route_ids
+        )
+        fully_drawable_on_page = any(
+            all(route_id in ids for route_id in route_ids)
+            for ids in page_id_sets.values()
+        )
+        if len(pages_with_any) > 1 and all_endpoints_present and not fully_drawable_on_page:
+            result.add(link_oid)
+    return result
+
+
+def exclude_common_only_logical_links_from_verification() -> None:
+    common_only_links = common_only_logical_link_ids()
+    if not common_only_links:
+        return
+    schema_key = SeafSchema.LOGICAL_LINK.value
+    expected_counts.setdefault(schema_key, set()).difference_update(common_only_links)
+    if schema_key in expected_data:
+        for link_oid in common_only_links:
+            expected_data[schema_key].pop(link_oid, None)
+    print(
+        f"\nINFO: {len(common_only_links)} cross-page logical_links are verified on the common page only: "
+        f"{', '.join(sorted(common_only_links))}"
+    )
 
 
 def run_auto_layout_if_enabled(conf: Dict[str, Any]) -> None:
@@ -923,6 +1022,101 @@ def _edge_targets_common_provider(element: ET.Element, common_provider_ids: Set[
     return mx.get('source') in common_provider_ids or mx.get('target') in common_provider_ids
 
 
+def _is_logical_link_edge(element: ET.Element) -> bool:
+    mx = _mx_cell(element)
+    return (
+        element.tag == 'object'
+        and mx is not None
+        and mx.get('edge') == '1'
+        and element.get('schema') == SeafSchema.LOGICAL_LINK.value
+    )
+
+
+def _is_logical_link_visual_edge(element: ET.Element) -> bool:
+    mx = _mx_cell(element)
+    if element.tag != 'object' or mx is None or mx.get('edge') != '1':
+        return False
+    return (
+        element.get('schema') == SeafSchema.LOGICAL_LINK.value
+        or element.get('common_logical_link') == 'true'
+    )
+
+
+def _ensure_visible_logical_layer(graph_root: ET.Element) -> str:
+    layer = graph_root.find(f"./mxCell[@id='{VISIBLE_LOGICAL_LAYER_ID}']")
+    if layer is None:
+        layer = ET.Element('mxCell', {
+            'id': VISIBLE_LOGICAL_LAYER_ID,
+            'value': VISIBLE_LOGICAL_LAYER_LABEL,
+            'parent': '0',
+        })
+    else:
+        layer.set('value', VISIBLE_LOGICAL_LAYER_LABEL)
+        layer.set('parent', '0')
+        layer.attrib.pop('visible', None)
+        graph_root.remove(layer)
+    graph_root.append(layer)
+    return VISIBLE_LOGICAL_LAYER_ID
+
+
+def _is_hidden_logical_tag_layer(parent_id: Optional[str]) -> bool:
+    if not parent_id or parent_id == VISIBLE_LOGICAL_LAYER_ID:
+        return False
+    return parent_id.startswith('layer.logical.') or parent_id.startswith('common_layer.logical.')
+
+
+def _should_use_visible_logical_layer(element: ET.Element, mx: ET.Element) -> bool:
+    if element.get('tags'):
+        return False
+    return not _is_hidden_logical_tag_layer(mx.get('parent'))
+
+
+def bring_logical_links_to_front(output_file: str) -> None:
+    if not output_file or not os.path.exists(output_file):
+        return
+
+    tree = ET.parse(output_file)
+    root = tree.getroot()
+    moved_by_page = {}
+
+    for diagram_element in root.findall('diagram'):
+        diagram_name = diagram_element.get('name') or ''
+        graph_root = diagram_element.find('./mxGraphModel/root')
+        if graph_root is None:
+            continue
+
+        visible_layer_id = ''
+        logical_edges = []
+        visible_edges = 0
+        for element in list(graph_root):
+            if not _is_logical_link_visual_edge(element):
+                continue
+            mx = _mx_cell(element)
+            if _should_use_visible_logical_layer(element, mx):
+                if not visible_layer_id:
+                    visible_layer_id = _ensure_visible_logical_layer(graph_root)
+                mx.set('parent', visible_layer_id)
+                visible_edges += 1
+            graph_root.remove(element)
+            logical_edges.append(element)
+
+        for element in logical_edges:
+            graph_root.append(element)
+
+        if logical_edges:
+            moved_by_page[diagram_name] = (len(logical_edges), visible_edges)
+
+    if not moved_by_page:
+        return
+
+    tree.write(output_file, encoding='utf-8', xml_declaration=True)
+    details = ', '.join(
+        f'{name}: total={total}, visible_layer={visible}'
+        for name, (total, visible) in moved_by_page.items()
+    )
+    print(f'\n> logical_links moved to foreground logical layer: {details}')
+
+
 def _reset_edge_geometry(element: ET.Element) -> None:
     mx = _mx_cell(element)
     if mx is None or mx.get('edge') != '1':
@@ -947,6 +1141,184 @@ def _create_common_provider_node(provider_id: str, label: str, x: float, y: floa
       </mxCell>
     </object>
     """)
+
+
+def _common_tag_layer_id(tag: str) -> str:
+    return 'common_' + tag_layer_id(tag, prefix='logical')
+
+
+def _ensure_common_tag_layer(common_root: ET.Element, tag: str) -> str:
+    layer_id = _common_tag_layer_id(tag)
+    if common_root.find(f"./mxCell[@id='{layer_id}']") is None:
+        common_root.append(ET.Element('mxCell', {
+            'id': layer_id,
+            'value': str(tag),
+            'parent': '0',
+            'visible': '0',
+        }))
+    return layer_id
+
+
+def _append_common_logical_edge(
+    common_root: ET.Element,
+    link_oid: str,
+    source_original_id: str,
+    target_original_id: str,
+    source_common_id: str,
+    target_common_id: str,
+    source_page_name: str,
+    target_page_name: str,
+    style: str,
+    parent_id: str,
+    topology: str,
+    step_index: int,
+) -> None:
+    edge_hash = hashlib.md5(
+        f'{link_oid}|{topology}|{step_index}|{source_common_id}|{target_common_id}|{parent_id}'.encode('utf-8')
+    ).hexdigest()
+    edge_id = f'common_logical_{edge_hash}'
+    obj = ET.SubElement(common_root, 'object', {
+        'id': edge_id,
+        'label': '',
+        'common_visual_copy': 'true',
+        'common_logical_link': 'true',
+        'logical_link_id': link_oid,
+        'source_oid': source_original_id,
+        'target_oid': target_original_id,
+        'source_page': source_page_name,
+        'target_page': target_page_name,
+        'topology': topology,
+        'step_index': str(step_index),
+    })
+    mx = ET.SubElement(obj, 'mxCell', {
+        'style': style,
+        'edge': '1',
+        'parent': parent_id,
+        'source': source_common_id,
+        'target': target_common_id,
+    })
+    ET.SubElement(mx, 'mxGeometry', {'relative': '1', 'as': 'geometry'})
+
+
+def _register_common_ref(
+    common_refs_by_original: Dict[str, List[Dict[str, Any]]],
+    original_id: str,
+    common_id: str,
+    source_page_name: str,
+    page_index: int,
+) -> None:
+    if not original_id or original_id in {'0', '1'} or not common_id:
+        return
+    refs = common_refs_by_original.setdefault(original_id, [])
+    if any(ref['common_id'] == common_id and ref['page_name'] == source_page_name for ref in refs):
+        return
+    refs.append({
+        'common_id': common_id,
+        'page_name': source_page_name,
+        'page_index': page_index,
+    })
+
+
+def _dedupe_common_ref_pairs(
+    ref_pairs: list[tuple[Dict[str, Any], Dict[str, Any]]]
+) -> list[tuple[Dict[str, Any], Dict[str, Any]]]:
+    result = []
+    seen = set()
+    for source_ref, target_ref in ref_pairs:
+        source_common_id = source_ref['common_id']
+        target_common_id = target_ref['common_id']
+        if source_common_id == target_common_id:
+            continue
+        key = (source_common_id, target_common_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append((source_ref, target_ref))
+    return result
+
+
+def _select_common_ref_pairs(
+    source_refs: list[Dict[str, Any]],
+    target_refs: list[Dict[str, Any]],
+) -> list[tuple[Dict[str, Any], Dict[str, Any]]]:
+    same_page_pairs = [
+        (source_ref, target_ref)
+        for source_ref in source_refs
+        for target_ref in target_refs
+        if source_ref['page_name'] == target_ref['page_name']
+    ]
+    if same_page_pairs:
+        return _dedupe_common_ref_pairs(same_page_pairs)
+
+    source_common_ids = {ref['common_id'] for ref in source_refs}
+    target_common_ids = {ref['common_id'] for ref in target_refs}
+    if len(source_common_ids) == 1:
+        return _dedupe_common_ref_pairs([(source_refs[0], target_ref) for target_ref in target_refs])
+    if len(target_common_ids) == 1:
+        return _dedupe_common_ref_pairs([(source_ref, target_refs[0]) for source_ref in source_refs])
+
+    source_ref = sorted(source_refs, key=lambda ref: ref['page_index'])[0]
+    target_ref = sorted(target_refs, key=lambda ref: ref['page_index'])[0]
+    return _dedupe_common_ref_pairs([(source_ref, target_ref)])
+
+
+def _draw_common_logical_links(
+    common_root: ET.Element,
+    common_refs_by_original: Dict[str, List[Dict[str, Any]]],
+) -> None:
+    logical_links = d.get_object(conf['data_yaml_file'], SeafSchema.LOGICAL_LINK.value)
+    if not isinstance(logical_links, dict):
+        return
+
+    drawn_edges = 0
+    skipped_edges = 0
+    for link_oid, link_data in logical_links.items():
+        if not isinstance(link_data, dict):
+            continue
+        source_id = link_data.get('source')
+        if not source_id:
+            continue
+        topology = normalize_logical_topology(link_oid, link_data)
+        target_ids = logical_link_targets(link_data)
+        if not target_ids:
+            continue
+        style = logical_link_style(str(link_data.get('direction') or '==>'))
+        tags = normalize_tag_values(link_data.get('tags'))
+        parent_ids = [_ensure_common_tag_layer(common_root, tag) for tag in tags] if tags else ['1']
+
+        for step_index, (step_source_id, target_id) in enumerate(logical_link_steps(source_id, target_ids, topology)):
+            source_refs = common_refs_by_original.get(step_source_id, [])
+            target_refs = common_refs_by_original.get(target_id, [])
+            if not source_refs or not target_refs:
+                skipped_edges += 1
+                print(
+                    f"\nWARNING: logical_link {link_oid} on common page: "
+                    f"can't draw {step_source_id} -> {target_id}; endpoint missing."
+                )
+                continue
+            ref_pairs = _select_common_ref_pairs(source_refs, target_refs)
+            if not ref_pairs:
+                continue
+            for parent_id in parent_ids:
+                for source_ref, target_ref in ref_pairs:
+                    _append_common_logical_edge(
+                        common_root=common_root,
+                        link_oid=link_oid,
+                        source_original_id=step_source_id,
+                        target_original_id=target_id,
+                        source_common_id=source_ref['common_id'],
+                        target_common_id=target_ref['common_id'],
+                        source_page_name=source_ref['page_name'],
+                        target_page_name=target_ref['page_name'],
+                        style=style,
+                        parent_id=parent_id,
+                        topology=topology,
+                        step_index=step_index,
+                    )
+                    drawn_edges += 1
+
+    if drawn_edges or skipped_edges:
+        print(f"\n> Общая схема: logical_links edges drawn={drawn_edges}, skipped={skipped_edges}")
 
 
 def build_common_location_page(conf: Dict[str, Any], source_pages: List[str]) -> None:
@@ -1001,9 +1373,11 @@ def build_common_location_page(conf: Dict[str, Any], source_pages: List[str]) ->
     common_provider_ids = set()
     provider_labels = {}
     provider_occurrences = {}
+    common_refs_by_original = {}
     max_right = margin_x
 
     for page_index, source_diagram in enumerate(source_diagrams):
+        source_page_name = source_diagram.get('name') or f'page_{page_index}'
         source_root = source_diagram.find('./mxGraphModel/root')
         if source_root is None:
             continue
@@ -1050,9 +1424,20 @@ def build_common_location_page(conf: Dict[str, Any], source_pages: List[str]) ->
                 if cell_id and cell_id not in {'0', '1'} and cell_id not in id_map:
                     id_map[cell_id] = f"common_{page_index}_{cell_id}"
 
+        for original_id, common_id in id_map.items():
+            _register_common_ref(
+                common_refs_by_original,
+                original_id,
+                common_id,
+                source_page_name,
+                page_index,
+            )
+
         for element in list(source_root):
             element_id = _element_id(element)
             if element_id in {'0', '1'} or element_id in skip_ids:
+                continue
+            if _is_logical_link_edge(element):
                 continue
             clone = deepcopy(element)
             _rewrite_ids(clone, id_map)
@@ -1082,6 +1467,8 @@ def build_common_location_page(conf: Dict[str, Any], source_pages: List[str]) ->
         last_y = node_y
         label = provider_labels.get(provider_key, provider_key)
         common_root.append(_create_common_provider_node(_provider_id(label), label, provider_x, node_y))
+
+    _draw_common_logical_links(common_root, common_refs_by_original)
 
     page_width = max(provider_x + 240, max_right + 80)
     page_height = max(cursor_y + 80, (last_y or 0) + 140, 1200)
@@ -1162,6 +1549,7 @@ if __name__ == '__main__':
                     add_links(object_pattern, logical_link=True)  # Связывание объектов на текущей диаграмме
 
     print('\n')
+    exclude_common_only_logical_links_from_verification()
     # Verifying drawn links & objects ...
     try:
         draw_verify(diagram_ids, diagram, pending_missing_links)
@@ -1177,3 +1565,4 @@ if __name__ == '__main__':
     advanced_analysis(conf, expected_counts, expected_data, pattern_specs, d)
 
     build_common_location_page(conf, diagram_pages.get('office', []) + diagram_pages.get('dc', []))
+    bring_logical_links_to_front(conf.get('output_file'))
