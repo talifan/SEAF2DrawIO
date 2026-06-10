@@ -5,7 +5,8 @@ seaf.company.ta.services.kbs:
     network_connection:
       - jupiter.network.lan.dc01.dmz.prod
       - jupiter.network.lan.dc02.dmz.prod
-    software_name: Sonarqube
+    softwares:
+      - jupiter.software.sonarqube
     status: Используется
     technology: Инструментальный контроль защищенности
     title: Инструментальный контроль защищенности
@@ -15,10 +16,11 @@ seaf.company.ta.services.kbs:
     network_connection:
       - jupiter.network.lan.dc01.dmz.prod
       - jupiter.network.lan.dc02.dmz.prod
-    software_name: S11
+    softwares:
+      - jupiter.software.s11
     status: Используется
     technology: Безопасность конфигураций
-    title: S11
+    title: Контроль конфигураций DMZ
   jupiter.kb.12:
     description: Сервис кибер безопасности
     tag: CS
@@ -29,30 +31,33 @@ seaf.company.ta.services.kbs:
       - jupiter.network.lan.dc02.int.it.services
       - jupiter.network.lan.dc01.int.it.services
       - jupiter.network.lan.dc02.int.it.services
-    software_name: S12
+    softwares:
+      - jupiter.software.s12
     status: Используется
     technology: Безопасность конфигураций
-    title: S12
+    title: Контроль конфигураций внутреннего контура
   jupiter.kb.2:
     description: Сервис кибер безопасности
     tag: FW
     network_connection:
       - jupiter.network.lan.dc01.int.sec.prod
       - jupiter.network.lan.dc02.int.sec.prod
-    software_name: S2
+    softwares:
+      - jupiter.software.s2
     status: Используется
     technology: Управление доступом пользователей
-    title: S2
+    title: Контроль доступа пользователей
   jupiter.kb.3:
     description: Сервис кибер безопасности
     tag: IDS
     network_connection:
       - jupiter.network.lan.dc01.int.sec.prod
       - jupiter.network.lan.dc02.int.sec.prod
-    software_name: S3
+    softwares:
+      - jupiter.software.s3
     status: Используется
     technology: Сигнатурный анализ режим обнаружения вторжений
-    title: IDS
+    title: Система обнаружения вторжений
   jupiter.kb.4:
     description: Сервис кибер безопасности
     tag: FW
@@ -61,7 +66,8 @@ seaf.company.ta.services.kbs:
       - jupiter.network.lan.dc01.int.prod
       - jupiter.network.lan.dc02.dmz.prod
       - jupiter.network.lan.dc02.int.prod
-    software_name: Forti
+    softwares:
+      - jupiter.software.forti
     status: Используется
     technology: Межсетевое экранирование
     title: МСЭ
@@ -71,7 +77,8 @@ seaf.company.ta.services.kbs:
     network_connection:
       - jupiter.network.lan.dc01.int.sec.prod
       - jupiter.network.lan.dc02.int.sec.prod
-    software_name: Kaspersky
+    softwares:
+      - jupiter.software.kaspersky
     status: Используется
     technology: Потоковый антивирус
     title: Сервис антивирус
@@ -86,18 +93,20 @@ seaf.company.ta.services.kbs:
     network_connection:
       - jupiter.network.lan.dc01.int.sec.prod
       - jupiter.network.lan.dc02.int.sec.prod
-    software_name: S6
+    softwares:
+      - jupiter.software.s6
     status: Используется
     technology: Контроль подключений к сети
-    title: S6
+    title: Контроль сетевого доступа
   jupiter.kb.7:
     description: Сервис кибер безопасности
     network_connection:
       - jupiter.network.lan.dc01.ext.wan
       - jupiter.network.lan.dc02.ext.wan
     technology: Шлюзы безопасности прикладного уровня
-    title: S7
-    software_name: S7
+    title: Шлюз прикладной безопасности
+    softwares:
+      - jupiter.software.s7
     tag: ALG
     status: Создается
   jupiter.kb.8:
@@ -106,20 +115,22 @@ seaf.company.ta.services.kbs:
     network_connection:
       - jupiter.network.lan.dc01.dmz.prod
       - jupiter.network.lan.dc02.dmz.prod
-    software_name: S8
+    softwares:
+      - jupiter.software.s8
     status: Используется
     technology: Контентная фильтрация и разграничение доступа в Интернет
-    title: S8
+    title: Контентная фильтрация интернет-доступа
   jupiter.kb.9:
     description: Сервис кибер безопасности
     tag: Log
     network_connection:
       - jupiter.network.lan.dc01.dmz.prod
       - jupiter.network.lan.dc02.dmz.prod
-    software_name: S9
+    softwares:
+      - jupiter.software.s9
     status: Используется
     technology: Аудит событий КБ
-    title: S9
+    title: Аудит событий КБ
     protected_services:
       - jupiter.k8s.01
       - jupiter.k8s.02
@@ -131,7 +142,8 @@ seaf.company.ta.services.kbs:
       - jupiter.network.wan.dc01.isp.01
       - jupiter.network.lan.dc02.inet_edge
       - jupiter.network.wan.dc02.isp.01
-    software_name: DDOS
+    softwares:
+      - jupiter.software.ddos
     status: Создается
     technology: Защита от атак типа "Отказ от обслуживания"
     title: DDOS
@@ -141,7 +153,8 @@ seaf.company.ta.services.kbs:
     network_connection:
       - jupiter.network.lan.dc01.dmz.prod
       - jupiter.network.lan.dc02.dmz.prod
-    software_name: Sandbox
+    softwares:
+      - jupiter.software.sandbox
     status: Используется
     technology: Динамический анализ угроз Sandbox
     title: Sandbox
@@ -154,7 +167,8 @@ seaf.company.ta.services.kbs:
     network_connection:
       - jupiter.network.wan.dc01.isp.01
       - jupiter.network.wan.dc02.isp.01
-    software_name: SEAM
+    softwares:
+      - jupiter.software.seam
     status: Используется
     technology: Сигнатурный анализ режим предотвращения вторжений
     title: SEAM
@@ -168,7 +182,8 @@ seaf.company.ta.services.kbs:
       - jupiter.network.lan.dc02.inet_edge
       - jupiter.network.wan.dc02.isp.01
       - jupiter.network.wan.dc02.isp.02
-    software_name: Nginx
+    softwares:
+      - jupiter.software.nginx
     status: Используется
     technology: Защита веб-приложений WAF
     title: WAF
@@ -176,21 +191,36 @@ seaf.company.ta.services.kbs:
       - jupiter.k8s.01
       - jupiter.k8s.02
   jupiter.service.kb.radius:
-    description: Сервис RADIUS в ЦОД1
-    tag: IDFW
+    description: Сервис AAA/RADIUS в ЦОД-01 для аутентификации, авторизации и учета сетевого доступа
+    tag: AAA
     network_connection:
       - jupiter.network.lan.dc01.int.sec.prod
-      - jupiter.network.lan.dc02.int.sec.prod
-    software_name: Аркан
+      - jupiter.network.lan.dc01.int.it.services
+      - jupiter.network.lan.dc01.dmz.vpn
+    softwares:
+      - jupiter.software.arkan
     status: Используется
-    technology: Управление доступом пользователей
-    title: RADIUS
+    technology: AAA
+    title: RADIUS AAA DC01
+  jupiter.service.kb.tacacs.dc02:
+    description: Сервис AAA/TACACS+ в ЦОД-02 для аутентификации администраторов сетевого оборудования
+    tag: AAA
+    network_connection:
+      - jupiter.network.lan.dc02.int.sec.prod
+      - jupiter.network.lan.dc02.int.it.services
+      - jupiter.network.lan.dc02.dmz.vpn
+    softwares:
+      - jupiter.software.arkan
+    status: Используется
+    technology: AAA
+    title: TACACS+ AAA DC02
   jupiter.service.kb.skud:
     description: Сервис СКУД в офисе
     tag: NAC
     network_connection:
       - jupiter.network.lan.office.pr.security
-    software_name: Аркан
+    softwares:
+      - jupiter.software.arkan
     status: Используется
     technology: Контроль подключений к сети
     title: СКУД
@@ -202,7 +232,8 @@ seaf.company.ta.services.kbs:
       - jupiter.network.lan.dc02.int.sec.prod
       - jupiter.network.lan.dc01.int.it.services
       - jupiter.network.lan.dc02.int.it.services
-    software_name: SIEM
+    softwares:
+      - jupiter.software.siem
     status: Используется
     technology: Аудит событий КБ
     title: SIEM/Logs
@@ -222,7 +253,8 @@ seaf.company.ta.services.kbs:
     network_connection:
       - jupiter.network.lan.dc01.int.it.services
       - jupiter.network.lan.dc02.int.it.services
-    software_name: CMC
+    softwares:
+      - jupiter.software.cmc
     status: Используется
     technology: Центр управления сертификатами ИБ
     title: Corporate CMC
@@ -242,7 +274,8 @@ seaf.company.ta.services.kbs:
     network_connection:
       - jupiter.network.lan.dc01.int.it.services
       - jupiter.network.lan.dc02.int.it.services
-    software_name: IdM
+    softwares:
+      - jupiter.software.idm
     status: Используется
     technology: Управление учетными записями (IdM)
     title: Corporate IdM
@@ -266,7 +299,8 @@ seaf.company.ta.services.kbs:
       - jupiter.network.lan.dc02.int.sec.prod
       - jupiter.network.lan.dc01.int.it.services
       - jupiter.network.lan.dc02.int.it.services
-    software_name: PAM
+    softwares:
+      - jupiter.software.pam
     status: Используется
     technology: Управление привилегированным доступом
     title: Central PAM
@@ -288,7 +322,8 @@ seaf.company.ta.services.kbs:
       - jupiter.network.lan.192.168.2.0
       - jupiter.network.lan.dc01.int.it.services
       - jupiter.network.lan.dc02.int.it.services
-    software_name: Harbor
+    softwares:
+      - jupiter.software.harbor
     status: Используется
     technology: Реестр контейнеров
     title: Harbor Registry
@@ -308,7 +343,8 @@ seaf.company.ta.services.kbs:
     network_connection:
       - jupiter.network.lan.dc01.int.it.services
       - jupiter.network.lan.dc02.int.it.services
-    software_name: Nexus
+    softwares:
+      - jupiter.software.nexus
     status: Используется
     technology: Репозиторий ПО
     title: Corporate Repo
@@ -328,7 +364,8 @@ seaf.company.ta.services.kbs:
     network_connection:
       - jupiter.network.lan.dc01.int.it.services
       - jupiter.network.lan.dc02.int.it.services
-    software_name: Keycloak
+    softwares:
+      - jupiter.software.keycloak
     status: Используется
     technology: Провайдер идентификации (IdP)
     title: Keycloak IdP
@@ -350,7 +387,8 @@ seaf.company.ta.services.kbs:
       - jupiter.network.lan.dc02.int.sec.prod
       - jupiter.network.lan.dc01.int.it.services
       - jupiter.network.lan.dc02.int.it.services
-    software_name: Vault
+    softwares:
+      - jupiter.software.vault
     status: Используется
     technology: Сервис хранения секретов
     title: Vault Secrets
@@ -372,7 +410,8 @@ seaf.company.ta.services.kbs:
       - jupiter.network.lan.192.168.2.0
       - jupiter.network.lan.dc01.int.it.services
       - jupiter.network.lan.dc02.int.it.services
-    software_name: Kyverno
+    softwares:
+      - jupiter.software.kyverno
     status: Используется
     technology: Политики Kubernetes
     title: Kyverno Policy
@@ -384,7 +423,8 @@ seaf.company.ta.services.kbs:
     title: Корпоративная DLP система
     description: Защита от утечек информации
     technology: Защита от утечек информации
-    software_name: InfoWatch
+    softwares:
+      - jupiter.software.infowatch
     tag: DLP
     status: Используется
     network_connection:
@@ -399,7 +439,8 @@ seaf.company.ta.services.kbs:
     title: Система мониторинга действий пользователей
     description: Контроль действий персонала на рабочих местах
     technology: Мониторинг действий пользователей
-    software_name: Teramind
+    softwares:
+      - jupiter.software.teramind
     tag: UAM
     status: Используется
     network_connection:

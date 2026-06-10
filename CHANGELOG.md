@@ -1,25 +1,32 @@
-# Changelog
+# Журнал изменений
 
-## Unreleased
+## Не выпущено
 
-- Added optional common location page generation via `common_location_page` and `--common-location-page`.
-- The common page stacks generated office and DC diagrams vertically, deduplicates provider networks from Internet-facing zones, and reconnects copied links to shared provider nodes.
-- The common page now redraws `logical_links`, including inter-location routes, while individual pages skip routes with endpoints outside the page.
-- Common-page `logical_links` now resolve all visual copies of duplicated SEAF objects, so links to stretched clusters are not collapsed to the first copied endpoint.
-- Untagged `logical_links` are moved to a separate visible foreground layer after generation, so they render above zone rectangles and the template `Links` layer.
-- Documented common page configuration, logical link `topology`, and tag-based logical link layers.
+- Добавлены отдельные паттерны размещения для страниц ЦОД и офисов для объектов `network_device` с `type: Криптошлюз` и `type: VPN`.
+- Добавлен отдельный паттерн размещения сервиса КБ для `technology: AAA`.
+- Переработано отображение k8s на страницах ЦОД и офисов: теперь используется тот же стиль рамки сервиса, что и у других технических сервисов внутри сетевых сегментов.
+- Улучшена автоматическая раскладка технических сервисов: k8s и похожие сервисы могут использовать явный атрибут `segment`, если по `network_connection` не удалось определить целевой сегмент.
+- Расширен поиск страниц для автоматической раскладки технических сервисов: теперь учитываются страницы Cloud.
+- Настроены колонки размещения пользовательских устройств на странице офиса, чтобы разные типы устройств не накладывались на одни и те же координаты LAN и сетевые устройства.
+- Исправлена нормализация сегментов: сегменты растягиваются по фактическому содержимому, а нижние сегменты, например `INT-WAN-EDGE`, сдвигаются вниз вместо перекрытия содержимого DMZ.
+- Добавлена опциональная генерация общей страницы локаций через `common_location_page` и `--common-location-page`.
+- Общая страница размещает сгенерированные схемы офисов и ЦОД вертикальным стеком, дедуплицирует провайдерские сети из Internet-facing зон и переподключает скопированные связи к общим провайдерским узлам.
+- Общая страница теперь перерисовывает `logical_links`, включая межлокационные маршруты, а отдельные страницы пропускают маршруты с endpoint-объектами вне текущей страницы.
+- `logical_links` на общей странице теперь разрешают все визуальные копии дублированных SEAF-объектов, поэтому связи к растянутым кластерам не схлопываются в первый скопированный endpoint.
+- `logical_links` без тегов после генерации переносятся на отдельный видимый передний слой, чтобы они отображались поверх прямоугольников зон и шаблонного слоя `Links`.
+- Задокументированы настройки общей страницы, `topology` для логических связей и слои логических связей на основе тегов.
 
 ## 1.8.0
 
-- Migrated generation and reverse conversion flow to `seaf.company.ta.*` naming.
-- Added `topology` support for logical links in `seaf2drawio.py`: `star` keeps source-to-all-targets rendering, while `chain` renders ordered point-to-point routes through the `target` list.
-- Added logging for logical links with missing or unknown `topology` and warnings for links that cannot be drawn because an endpoint is absent from the current page.
-- Added directory input support in `config.yaml` for `data_yaml_file` (auto-load `*.yaml`/`*.yml`).
-- Updated helper scripts (`scripts/scale_drawio_services.py`, `scripts/layout_tech_services.py`) for new schemas.
-- Improved ISP placement on `Main Schema` to avoid overlaps by container-aware positioning.
-- Added `auto_layout_grid` config flag in `seaf2drawio.py` to optionally run post-generation grid layout automatically.
-- Extended auto-layout defaults to include Office pages and enforced UTF-8 execution for layout script calls on Windows.
-- Fixed Office page placement: user devices now anchor to their connected network container; LAN pattern spacing tuned to keep networks within segment bounds.
-- Updated docs with config variability, helper scripts usage, and sample command output.
-- Updated dependency constraints in `requirements.txt`.
-- **Breaking change:** SEAF1 (`seaf.ta.*`) support is disabled in this version.
+- Поток генерации и обратного преобразования переведён на именование `seaf.company.ta.*`.
+- В `seaf2drawio.py` добавлена поддержка `topology` для логических связей: `star` сохраняет построение от источника ко всем целям, а `chain` строит упорядоченный point-to-point маршрут по списку `target`.
+- Добавлено логирование логических связей с отсутствующим или неизвестным `topology`, а также предупреждения для связей, которые нельзя построить из-за отсутствия endpoint-объекта на текущей странице.
+- В `config.yaml` добавлена поддержка директории в `data_yaml_file` с автоматической загрузкой `*.yaml` и `*.yml`.
+- Вспомогательные скрипты (`scripts/scale_drawio_services.py`, `scripts/layout_tech_services.py`) обновлены под новые схемы.
+- Улучшено размещение ISP на `Main Schema`: используется позиционирование с учётом контейнеров, чтобы избежать наложений.
+- В `seaf2drawio.py` добавлен флаг конфигурации `auto_layout_grid` для опционального автоматического запуска grid layout после генерации.
+- Расширены значения по умолчанию для auto-layout: добавлены страницы Office, а для вызовов layout-скриптов на Windows принудительно используется UTF-8.
+- Исправлено размещение на странице Office: пользовательские устройства теперь привязываются к подключенному сетевому контейнеру; расстояния в LAN-паттернах настроены так, чтобы сети оставались внутри границ сегмента.
+- Документация обновлена описанием вариантов конфигурации, использования вспомогательных скриптов и примером вывода команды.
+- Обновлены ограничения зависимостей в `requirements.txt`.
+- **Ломающее изменение:** поддержка SEAF1 (`seaf.ta.*`) отключена в этой версии.

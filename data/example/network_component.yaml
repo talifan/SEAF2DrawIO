@@ -10,7 +10,24 @@ seaf.company.ta.components.networks:
     realization_type: Физический
     segment: jupiter.network_segment.dc.dmz
     title: FPSU-1
-    type: Межсетевой экран (файрвол)
+    type: Криптошлюз
+    stand:
+      - jupiter.stand.prod
+  jupiter.network_device.dc.vpn.01:
+    address: 10.10.25.10
+    description: VPN-концентратор ЦОД-01 для терминации site-to-site и пользовательских VPN-подключений через периметр ЦОД.
+    location:
+    - jupiter.dc.moscow_dc01
+    model: VPN Gateway 5000
+    network_connection:
+    - jupiter.network.lan.dc01.inet_edge
+    - jupiter.network.lan.dc01.dmz.vpn
+    - jupiter.network.lan.dc01.int.prod
+    purpose: Терминация VPN-туннелей и маршрутизация защищенного трафика в продуктивный сегмент ЦОД-01
+    realization_type: Виртуальный
+    segment: jupiter.network_segment.dc.dmz
+    title: VPN Gateway DC01
+    type: VPN
     stand:
       - jupiter.stand.prod
   jupiter.network_device.dc.fw.01:
@@ -272,8 +289,25 @@ seaf.company.ta.components.networks:
     realization_type: Физический
     segment: jupiter.network_segment.dc02.dmz
     title: FPSU-1 DC02
-    type: Межсетевой экран (файрвол)
+    type: Криптошлюз
     stand: 
+      - jupiter.stand.prod
+  jupiter.network_device.dc.vpn.01_dc02:
+    address: 10.20.25.10
+    description: VPN-концентратор ЦОД-02 для резервной терминации site-to-site и пользовательских VPN-подключений.
+    location:
+    - jupiter.dc.moscow_dc02
+    model: VPN Gateway 5000
+    network_connection:
+    - jupiter.network.lan.dc02.inet_edge
+    - jupiter.network.lan.dc02.dmz.vpn
+    - jupiter.network.lan.dc02.int.prod
+    purpose: Резервная терминация VPN-туннелей и маршрутизация защищенного трафика в продуктивный сегмент ЦОД-02
+    realization_type: Виртуальный
+    segment: jupiter.network_segment.dc02.dmz
+    title: VPN Gateway DC02
+    type: VPN
+    stand:
       - jupiter.stand.prod
   jupiter.network_device.dc.fw.01_dc02:
     address: 10.10.21.1
@@ -801,6 +835,24 @@ seaf.company.ta.components.networks:
     title: Router 4
     type: Маршрутизатор (роутер)
     stand: 
+      - jupiter.stand.prod
+  jupiter.network_device.vpn.hq:
+    address: 192.168.8.30
+    description: VPN-шлюз головного офиса для защищенного подключения пользователей и site-to-site туннелей к площадкам ЦОД.
+    location:
+    - jupiter.dc_office.hq
+    model: VPN Gateway 3000
+    network_connection:
+    - jupiter.network.lan.office.inet_edge
+    - jupiter.network.lan.office.wan_edge
+    - jupiter.network.lan.office.pr.security
+    - jupiter.network.lan.office.int.lan
+    purpose: Терминация офисных VPN-туннелей и передача защищенного трафика между офисной ЛВС, WAN-edge и внешним периметром
+    realization_type: Физический
+    segment: jupiter.network_segment.office.inet_edge
+    title: VPN Gateway HQ
+    type: VPN
+    stand:
       - jupiter.stand.prod
   jupiter.network_device.wificontroller.arm:
     address: 192.168.8.20

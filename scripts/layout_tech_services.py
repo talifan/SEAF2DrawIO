@@ -828,7 +828,8 @@ def derive_segment_from_connections(obj, schema_conf, net_lookup):
         if seg:
             segs.append(seg)
     if not segs:
-        return ""
+        direct_segments = parse_list_literal(obj.get("segment"))
+        return direct_segments[0] if direct_segments else ""
     counter = Counter(segs)
     best = sorted(counter.items(), key=lambda item: (-item[1], item[0]))[0][0]
     return best
@@ -1116,7 +1117,7 @@ def parse_args():
     parser.add_argument("--diagram", default="all", help="Target diagram name or 'all'")
     parser.add_argument(
         "--diagram-filter",
-        default="DC,ЦОД,Office,Офис,Головной",
+        default="DC,ЦОД,Office,Офис,Головной,Cloud",
         help="Comma separated keywords for selecting diagrams when --diagram=all",
     )
     parser.add_argument(

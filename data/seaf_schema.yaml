@@ -186,26 +186,25 @@
         "^[a-zA-Z0-9_\\.]*$":
           $ref: "#/$defs/seaf.ta.services.base.entity"
           properties:
-            sber:
-              location:
-                title: ID ЦОД или Офиса
-                type: string
-                items:
-                    anyOf:
-                    - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
-                    - $ref: "#/$rels/seaf.company.ta.services.dc_offices.office"
-              zone:
-                title: Сетевая зона
-                enum:
-                    - EXTERNAL-NET
-                    - INTERNET
-                    - TRANSPORT-WAN
-                    - INET-EDGE
-                    - EXT-WAN-EDGE
-                    - INT-WAN-EDGE
-                    - DMZ
-                    - INT-NET
-                    - INT-SECURITY-NET
+            location:
+              title: ID ЦОД или Офиса
+              type: string
+              items:
+                  anyOf:
+                  - $ref: "#/$rels/seaf.company.ta.services.dcs.dc"
+                  - $ref: "#/$rels/seaf.company.ta.services.dc_offices.office"
+            zone:
+              title: Сетевая зона
+              enum:
+                  - EXTERNAL-NET
+                  - INTERNET
+                  - TRANSPORT-WAN
+                  - INET-EDGE
+                  - EXT-WAN-EDGE
+                  - INT-WAN-EDGE
+                  - DMZ
+                  - INT-NET
+                  - INT-SECURITY-NET
 ################ Сети WAN/LAN ################################################################
 
   seaf.company.ta.services.networks:
@@ -392,13 +391,13 @@
             technology:
               type: string
               enum:
-                - Механизмы ААА
+                - AAA
                 - Межсетевое экранирование
                 - Сигнатурный анализ режим обнаружнения вторжений
                 - Сигнатурный анализ режим предотвращения вторжений
                 - Поведенческий анализ сетевого трафика
                 - Динамический анализ угроз Sandbox
-                - Защита от атака типа "Отказ в обслуживании"
+                - Защита от атак типа "Отказ от обслуживания"
                 - Шифрование канала
                 - Потоковый антивирус
                 - Управление доступом пользователей
@@ -419,7 +418,7 @@
                   $ref: "#/$rels/seaf.company.ta.services.networks.network"
             label:
               type: string
-              enum: [ AV,UAM,Sandbox, SCAN, FW, IDFW, NAC, Proxy, IDS, IPS, NBA, DDoS, WAF, ALG,  DLP, Log, CS, CMS, AntiFraud ]
+              enum: [ AV,UAM,Sandbox, SCAN, FW, IDFW, NAC, Proxy, IDS, IPS, NBA, DDoS, WAF, ALG,  DLP, Log, CS, CMS, AntiFraud, AAA ]
             status:
               title: Статус
               type: string

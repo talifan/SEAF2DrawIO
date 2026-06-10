@@ -18,4 +18,4 @@ seaf.company.ta.services.dcs:
     address: Москва, ул. Южная 5
     rack_qty: 0
     tier: "3"
-    availabilityzone: jupiter.dc_az.moscow
+    availabilityzone: jupiter.dc_az.moscow_dr

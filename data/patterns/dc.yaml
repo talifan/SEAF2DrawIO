@@ -472,6 +472,24 @@ firewall:
   h: 40
   algo: 'Y+'
 
+crypto_gateway:
+  xml : >
+    <object label="&lt;font style=&quot;font-size: 8px;&quot;&gt;{{label}}&lt;/font&gt;" id="{{id}}">
+      <mxCell style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=#232F3E;fillColor=#FF3333;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.vpn_gateway;" vertex="1" parent="{segment}">
+        <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
+      </mxCell>
+    </object>
+  schema: 'seaf.company.ta.components.networks'
+  parent_id: 'segment'
+  type: "type:Криптошлюз"
+  deep: 7
+  offset: 30
+  x: 30
+  y: 232
+  w: 30
+  h: 30
+  algo: 'Y+'
+
 fpsu:
   xml : >
     <object label="&lt;font style=&quot;font-size: 8px;&quot;&gt;{{label}}&lt;/font&gt;" id="{{id}}">
@@ -508,6 +526,24 @@ switch:
   deep: 7
   offset: 30
   x: 210
+  y: 40
+  w: 50
+  h: 20
+  algo: 'Y+'
+
+vpn_gateway:
+  xml : >
+    <object label="&lt;font style=&quot;color: light-dark(rgb(0, 0, 0), rgb(237, 237, 237)); line-height: 140%; font-size: 9px; &quot;&gt;&amp;nbsp;{{label}}&amp;nbsp;&lt;/font&gt;" id="{{id}}">
+          <mxCell style="shape=mxgraph.cisco.hubs_and_gateways.vpn_gateway;sketch=0;html=1;pointerEvents=1;dashed=0;fillColor=#036897;strokeColor=#ffffff;strokeWidth=2;verticalLabelPosition=bottom;verticalAlign=top;align=center;outlineConnect=0;labelBackgroundColor=default;fontSize=12;fontColor=#FFFFFF;" parent="{segment}" vertex="1">
+            <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
+          </mxCell>
+    </object>
+  schema: 'seaf.company.ta.components.networks'
+  parent_id: 'segment'
+  type: "type:VPN"
+  deep: 7
+  offset: 30
+  x: 20
   y: 40
   w: 50
   h: 20
@@ -883,6 +919,36 @@ kb_services_config:
   deep: 10
   offset: 30
   x: 1175
+  y: 1600
+  w: 40
+  h: 40
+  algo: 'Y+'
+
+kb_services_aaa:
+  xml : >
+    <mxCell id="{{id}}" value="" style="group" vertex="1" connectable="0" parent="101">
+      <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
+    </mxCell>
+    <object label="&lt;div style=&quot;line-height: 100%; padding-top: 30px;&quot;&gt;&lt;font style=&quot;font-size: 7px;&quot;&gt;{{label}}&lt;/font&gt;&lt;/div&gt;" id="{{id}}">
+      <mxCell style="whiteSpace=wrap;html=1;aspect=fixed;pointerEvents=0;align=center;verticalAlign=top;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=light-dark(#C4D6A0,#EDEDED);gradientColor=none;" vertex="1" parent="{Group_ID}">
+        <mxGeometry width="{{width}}" height="{{height}}" as="geometry" />
+      </mxCell>
+    </object>
+    <mxCell id="{{id}}" style="vsdxID=14544;fillColor=#789440;gradientColor=none;shape=stencil(nZBLDoAgDERP0z3SIyjew0SURgSD+Lu9kMZoXLhwN9O+tukAlrNpJg1SzDH4QW/URgNYgZTkjA4UkwJUgGXng+6DX1zLfmoymdXo17xh5zmRJ6Q42BWCfc2oJfdAr+Yv+AP9Cb7OJ3H/2JG1HNGz/84klThPVCc=);strokeColor=#000000;labelBackgroundColor=none;rounded=0;html=1;whiteSpace=wrap;container=0;" vertex="1" parent="{Group_ID}">
+      <mxGeometry y="10" width="40" height="20" as="geometry" />
+    </mxCell>
+    <mxCell id="{{id}}" style="fillColor=#923931;strokeColor=#ffffff;rounded=0;html=1;whiteSpace=wrap;container=0;" vertex="1" parent="{Group_ID}">
+      <mxGeometry x="10" y="11" width="8.78048780487805" height="18" as="geometry" />
+    </mxCell>
+    <mxCell id="{{id}}" value="AAA" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#923931;fillColor=#FFFFFF;fontFamily=Helvetica;fontSize=7;fontStyle=1;fontColor=#923931;align=center;verticalAlign=middle;spacing=0;" vertex="1" parent="{Group_ID}">
+      <mxGeometry x="18" y="12" width="19" height="16" as="geometry" />
+    </mxCell>
+  schema: 'seaf.company.ta.services.kbs'
+  parent_id: 'network_connection'
+  type: 'technology:AAA'
+  deep: 10
+  offset: 30
+  x: 1245
   y: 1600
   w: 40
   h: 40
@@ -1388,19 +1454,28 @@ ta_services_virtual_cluster:
 
 ta_services_k8s:
     xml: >
-      <object label="&lt;div style=&quot;line-height: 100%; padding-top: 0px;&quot;&gt;&lt;font style=&quot;font-size: 7px;&quot;&gt;{{label}}&lt;/font&gt;&lt;/div&gt;" id="{{id}}">
-        <mxCell style="aspect=fixed;sketch=0;html=1;dashed=0;whitespace=wrap;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#2875E2;strokeColor=#ffffff;points=[[0.005,0.63,0],[0.1,0.2,0],[0.9,0.2,0],[0.5,0,0],[0.995,0.63,0],[0.72,0.99,0],[0.5,1,0],[0.28,0.99,0]];shape=mxgraph.kubernetes.icon2;prIcon=control_plane;container=0;" vertex="1" parent="102">
-          <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
-        </mxCell>
-      </object>
+     <mxCell id="{{id}}" value="" style="group" vertex="1" connectable="0" parent="102">
+       <mxGeometry x="{{x_pos}}" y="{{y_pos}}" width="{{width}}" height="{{height}}" as="geometry" />
+     </mxCell>
+     <mxCell id="{{id}}" value="" style="group" vertex="1" connectable="0" parent="{Group_ID}">
+       <mxGeometry width="{{width}}" height="{{height}}" as="geometry" />
+     </mxCell>
+     <object label="&lt;div style=&quot;line-height: 100%; padding-top: 30px;&quot;&gt;&lt;font style=&quot;font-size: 7px;&quot;&gt;{{label}}&lt;/font&gt;&lt;/div&gt;" id="{{id}}">
+       <mxCell style="whiteSpace=wrap;html=1;aspect=fixed;pointerEvents=0;align=center;verticalAlign=top;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=light-dark(#C4D6A0,#EDEDED);gradientColor=none;container=0;" vertex="1" parent="{Group_ID}">
+         <mxGeometry width="{{width}}" height="{{height}}" as="geometry" />
+       </mxCell>
+     </object>
+     <mxCell id="{{id}}" value="" style="aspect=fixed;sketch=0;html=1;dashed=0;whiteSpace=wrap;verticalLabelPosition=bottom;verticalAlign=top;align=center;fillColor=#2875E2;strokeColor=#ffffff;points=[[0.005,0.63,0],[0.1,0.2,0],[0.9,0.2,0],[0.5,0,0],[0.995,0.63,0],[0.72,0.99,0],[0.5,1,0],[0.28,0.99,0]];shape=mxgraph.kubernetes.icon2;prIcon=control_plane;container=0;" vertex="1" parent="{Group_ID}">
+       <mxGeometry x="10" y="8" width="20" height="20" as="geometry" />
+     </mxCell>
     schema: 'seaf.company.ta.services.k8s'
     parent_id: 'network_connection'
     deep: 10
     offset: 30
     x: 2310
     y: 1600
-    w: 50
-    h: 50
+    w: 40
+    h: 40
     algo: 'Y+'
 
 

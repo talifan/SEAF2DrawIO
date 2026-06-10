@@ -18,7 +18,6 @@ SEGMENT_PADDING_RIGHT = 20.0
 BOTTOM_MARGIN = 40.0
 MIN_SEGMENT_HEIGHT = 160.0
 FLOW_ITEM_GAP_Y = 20.0
-MAX_INT_NET_STACK_ITEMS = 5
 EXTERNAL_INTERNET_CIDR = "0.0.0.0/0"
 INTERNET_ITEM_GAP_X = 20.0
 INTERNET_ITEM_GAP_Y = 20.0
@@ -155,40 +154,6 @@ def measure_segment_content(root_cell, segment_id):
         bottom = max(bottom, visual_y + layout_h)
 
     return right, bottom
-
-
-def get_reference_network_height(root_cell, segments):
-    int_net_segment_ids = {
-        segment_id
-        for segment_id, segment in segments.items()
-        if segment["zone"] == "INT-NET"
-    }
-    int_net_heights = []
-    fallback_heights = []
-
-    for elem in root_cell:
-        if elem.tag != "object":
-            continue
-        if elem.get("schema") != SeafSchema.NETWORK:
-            continue
-        cell = elem.find("mxCell")
-        if cell is None:
-            continue
-        parent_id = cell.get("parent") or ""
-        if parent_id not in segments:
-            continue
-        _, layout_h = get_layout_box(cell)
-        if layout_h <= 0:
-            continue
-        fallback_heights.append(layout_h)
-        if parent_id in int_net_segment_ids:
-            int_net_heights.append(layout_h)
-
-    if int_net_heights:
-        return max(int_net_heights)
-    if fallback_heights:
-        return max(fallback_heights)
-    return 200.0
 
 
 def update_segment_geometry(segment, *, x=None, y=None, w=None, h=None):
@@ -599,31 +564,12 @@ def normalize_page_segments(root_cell):
 
     changed = False
     bounds = {}
-    reference_network_height = get_reference_network_height(root_cell, segments)
-    max_int_net_height = (
-        SEGMENT_PADDING_X
-        + MAX_INT_NET_STACK_ITEMS * reference_network_height
-        + max(0, MAX_INT_NET_STACK_ITEMS - 1) * FLOW_ITEM_GAP_Y
-        + BOTTOM_MARGIN
-    )
-
     for segment_id, segment in segments.items():
         current_w = float_attr(segment["geom"], "width")
         content_right, content_bottom = measure_segment_content(root_cell, segment_id)
         target_w = max(current_w, content_right + SEGMENT_PADDING_RIGHT)
         target_h = max(MIN_SEGMENT_HEIGHT, content_bottom + BOTTOM_MARGIN)
         bounds[segment_id] = {"w": target_w, "h": target_h}
-
-    if int_net is not None:
-        bounds[int_net["id"]]["h"] = min(bounds[int_net["id"]]["h"], max_int_net_height)
-        height_ceiling = bounds[int_net["id"]]["h"]
-    else:
-        height_ceiling = max_int_net_height
-
-    for segment_id, bound in bounds.items():
-        if int_net is not None and segment_id == int_net["id"]:
-            continue
-        bound["h"] = min(bound["h"], height_ceiling)
 
     if inet and dmz:
         inet_x = float_attr(inet["geom"], "x")
