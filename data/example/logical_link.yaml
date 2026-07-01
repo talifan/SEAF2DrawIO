@@ -29,4 +29,53 @@ seaf.company.ta.services.logical_links:
     topology: star
     tags:
       - firewall
-
+  jupiter.link.mr2.office_to_dc01_vpn:
+    description: Тестовая межсайтовая связь MR2 между головным офисом и Sber Cloud DC для проверки отображения logical links на общей схеме.
+    direction: <==>
+    source: jupiter.network_device.ngfw.cntxt1
+    stand:
+    - jupiter.stand.prod
+    target:
+    - jupiter.network_device.dc.vpn.01
+    title: MR2 Office - Sber DC
+    topology: star
+    tags:
+    - mr2-cross-site
+    - office-dc01
+  jupiter.link.mr2.dc01_to_dc02_replication:
+    description: Тестовая межсайтовая связь MR2 между Sber Cloud DC и VK DC для проверки связи между разными DC-страницами.
+    direction: <==>
+    source: jupiter.network_device.dc.fw.07
+    stand:
+    - jupiter.stand.prod
+    target:
+    - jupiter.network_device.dc.fw.07_dc02
+    title: MR2 Sber DC - VK DC
+    topology: star
+    tags:
+    - mr2-cross-site
+    - dc-dr
+  jupiter.link.mr2.office_dc01_dc02_chain:
+    description: "Тестовая chain-связь MR2 через три площадки: головной офис, Sber Cloud DC и VK DC."
+    direction: ==>
+    source: jupiter.network_device.ngfw.01
+    stand:
+    - jupiter.stand.prod
+    target:
+    - jupiter.network_device.dc.vpn.01
+    - jupiter.network_device.dc.vpn.01_dc02
+    title: MR2 Office - Sber DC - VK DC
+    topology: chain
+    tags:
+    - mr2-cross-site
+    - mr2-chain
+  jupiter.link.mr2.office_to_dc02_untagged:
+    description: Тестовая межсайтовая связь MR2 без tags для проверки базового слоя logical links.
+    direction: ==>
+    source: jupiter.user_device.pc
+    stand:
+    - jupiter.stand.prod
+    target:
+    - jupiter.network_device.dc.vpn.01_dc02
+    title: MR2 Office - VK DC без тега
+    topology: star
